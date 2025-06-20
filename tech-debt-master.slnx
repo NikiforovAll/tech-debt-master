@@ -1,6 +1,5 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TechDebtMaster.Cli/TechDebtMaster.Cli.csproj" />
-    <Project Path="src/TechDebtMaster/TechDebtMaster.csproj" />
   </Folder>
 </Solution>

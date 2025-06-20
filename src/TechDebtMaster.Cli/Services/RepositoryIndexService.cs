@@ -2,19 +2,75 @@ namespace TechDebtMaster.Cli.Services;
 
 public interface IRepositoryIndexService
 {
-    Task<string> IndexRepositoryAsync(string repositoryPath);
+    Task<IndexResult> IndexRepositoryAsync(string repositoryPath);
     string GetLastIndexedContent();
+}
+
+public class IndexResult
+{
+    public string FileSummary { get; set; } = string.Empty;
+    public IndexSummary ChangeSummary { get; set; } = new();
+    public bool HasChanges => ChangeSummary.ChangedFiles.Any() || 
+                              ChangeSummary.NewFiles.Any() || 
+                              ChangeSummary.DeletedFiles.Any();
 }
 
 public class RepositoryIndexService : IRepositoryIndexService
 {
+    private readonly IIndexStorageService _storageService;
+    private readonly IHashCalculator _hashCalculator;
+    private readonly IChangeDetector _changeDetector;
+    private readonly IRepomixParser _repomixParser;
     private string _lastIndexedContent = string.Empty;
 
-    public async Task<string> IndexRepositoryAsync(string repositoryPath)
+    public RepositoryIndexService(
+        IIndexStorageService storageService,
+        IHashCalculator hashCalculator,
+        IChangeDetector changeDetector,
+        IRepomixParser repomixParser)
     {
-        var fileSummary = await RunRepomixAndParseAsync(repositoryPath);
-        _lastIndexedContent = fileSummary;
-        return fileSummary;
+        _storageService = storageService;
+        _hashCalculator = hashCalculator;
+        _changeDetector = changeDetector;
+        _repomixParser = repomixParser;
+    }
+
+    public async Task<IndexResult> IndexRepositoryAsync(string repositoryPath)
+    {
+        var repomixOutput = await RunRepomixAsync(repositoryPath);
+        var parsedData = _repomixParser.ParseXmlOutput(repomixOutput);
+        
+        _lastIndexedContent = parsedData.FileSummary;
+
+        var previousIndex = await _storageService.LoadLatestIndexAsync(repositoryPath);
+        
+        var currentIndex = new IndexData
+        {
+            Timestamp = DateTime.UtcNow,
+            RepositoryPath = repositoryPath,
+            Files = new Dictionary<string, FileInfo>()
+        };
+
+        foreach (var (path, fileData) in parsedData.Files)
+        {
+            currentIndex.Files[path] = new FileInfo
+            {
+                Hash = _hashCalculator.CalculateHash(fileData.Content),
+                Size = fileData.Content.Length,
+                LastModified = DateTime.UtcNow
+            };
+        }
+
+        var changeSummary = _changeDetector.DetectChanges(previousIndex, currentIndex);
+        currentIndex.Summary = changeSummary;
+
+        await _storageService.SaveIndexAsync(repositoryPath, currentIndex);
+
+        return new IndexResult
+        {
+            FileSummary = parsedData.FileSummary,
+            ChangeSummary = changeSummary
+        };
     }
 
     public string GetLastIndexedContent()
@@ -22,11 +78,6 @@ public class RepositoryIndexService : IRepositoryIndexService
         return _lastIndexedContent;
     }
 
-    private static async Task<string> RunRepomixAndParseAsync(string repositoryPath)
-    {
-        var repomixOutput = await RunRepomixAsync(repositoryPath);
-        return ParseFileSummary(repomixOutput);
-    }
 
     private static async Task<string> RunRepomixAsync(string repositoryPath)
     {
@@ -93,12 +144,4 @@ public class RepositoryIndexService : IRepositoryIndexService
         }
     }
 
-    private static string ParseFileSummary(string repomixOutput)
-    {
-        const string FileSummaryTag = "<file_summary>";
-
-        var index = repomixOutput.IndexOf(FileSummaryTag, StringComparison.OrdinalIgnoreCase);
-
-        return index == -1 ? string.Empty : repomixOutput[index..];
-    }
 }

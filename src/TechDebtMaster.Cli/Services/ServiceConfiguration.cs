@@ -39,6 +39,10 @@ public static class ServiceConfiguration
         services.AddScoped<IndexCommand>();
         services.AddScoped<AnalyzeCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
+        services.AddScoped<IIndexStorageService, IndexStorageService>();
+        services.AddScoped<IHashCalculator, HashCalculator>();
+        services.AddScoped<IChangeDetector, ChangeDetector>();
+        services.AddScoped<IRepomixParser, RepomixParser>();
 
         return services;
     }

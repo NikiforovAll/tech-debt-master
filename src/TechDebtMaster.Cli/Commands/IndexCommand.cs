@@ -23,7 +23,7 @@ public class IndexCommand(Kernel kernel, IRepositoryIndexService indexService)
 
         AnsiConsole.MarkupLine($"[green]Indexing repository:[/] {settings.RepositoryPath}");
 
-        string fileSummary = "";
+        IndexResult? indexResult = null;
 
         try
         {
@@ -36,24 +36,89 @@ public class IndexCommand(Kernel kernel, IRepositoryIndexService indexService)
                         ctx.Spinner(Spinner.Known.Star);
                         ctx.SpinnerStyle(Style.Parse("green"));
 
-                        fileSummary = await indexService.IndexRepositoryAsync(
+                        indexResult = await indexService.IndexRepositoryAsync(
                             settings.RepositoryPath
                         );
                     }
                 );
 
-            if (string.IsNullOrEmpty(fileSummary))
+            if (indexResult == null)
+            {
+                AnsiConsole.MarkupLine(
+                    "[red]Error:[/] Failed to index repository."
+                );
+                return 1;
+            }
+
+            if (string.IsNullOrEmpty(indexResult.FileSummary))
             {
                 AnsiConsole.MarkupLine(
                     "[yellow]Warning:[/] No file_summary section found in repomix output."
                 );
-                return 0;
             }
 
             AnsiConsole.MarkupLine($"[green]✓[/] Repository indexed successfully!");
-            AnsiConsole.MarkupLine(
-                $"[dim]Extracted {fileSummary.Length} characters of file summary data[/]"
-            );
+            
+            var summary = indexResult.ChangeSummary;
+            AnsiConsole.MarkupLine($"[dim]Total files: {summary.TotalFiles}[/]");
+            
+            if (indexResult.HasChanges)
+            {
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[bold]Changes detected:[/]");
+                
+                if (summary.NewFiles.Any())
+                {
+                    AnsiConsole.MarkupLine($"[green]+ {summary.NewFiles.Count} new files[/]");
+                    if (settings.ShowDetails)
+                    {
+                        foreach (var file in summary.NewFiles.Take(10))
+                        {
+                            AnsiConsole.MarkupLine($"  [green]+ {file}[/]");
+                        }
+                        if (summary.NewFiles.Count > 10)
+                        {
+                            AnsiConsole.MarkupLine($"  [dim]... and {summary.NewFiles.Count - 10} more[/]");
+                        }
+                    }
+                }
+                
+                if (summary.ChangedFiles.Any())
+                {
+                    AnsiConsole.MarkupLine($"[yellow]~ {summary.ChangedFiles.Count} changed files[/]");
+                    if (settings.ShowDetails)
+                    {
+                        foreach (var file in summary.ChangedFiles.Take(10))
+                        {
+                            AnsiConsole.MarkupLine($"  [yellow]~ {file}[/]");
+                        }
+                        if (summary.ChangedFiles.Count > 10)
+                        {
+                            AnsiConsole.MarkupLine($"  [dim]... and {summary.ChangedFiles.Count - 10} more[/]");
+                        }
+                    }
+                }
+                
+                if (summary.DeletedFiles.Any())
+                {
+                    AnsiConsole.MarkupLine($"[red]- {summary.DeletedFiles.Count} deleted files[/]");
+                    if (settings.ShowDetails)
+                    {
+                        foreach (var file in summary.DeletedFiles.Take(10))
+                        {
+                            AnsiConsole.MarkupLine($"  [red]- {file}[/]");
+                        }
+                        if (summary.DeletedFiles.Count > 10)
+                        {
+                            AnsiConsole.MarkupLine($"  [dim]... and {summary.DeletedFiles.Count - 10} more[/]");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]No changes detected since last index.[/]");
+            }
 
             return 0;
         }
@@ -70,4 +135,8 @@ public class IndexSettings : CommandSettings
     [Description("Path to the repository to index")]
     [CommandArgument(0, "<REPOSITORY_PATH>")]
     public string RepositoryPath { get; init; } = string.Empty;
+
+    [Description("Show detailed file changes")]
+    [CommandOption("-d|--details")]
+    public bool ShowDetails { get; init; }
 }
