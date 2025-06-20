@@ -9,20 +9,14 @@ public interface IIndexStorageService
     string GetIndexDirectory(string repositoryPath);
 }
 
-public class IndexStorageService : IIndexStorageService
+public class IndexStorageService(IHashCalculator hashCalculator) : IIndexStorageService
 {
     private const string IndexDirectoryName = ".tdm";
-    private readonly IHashCalculator _hashCalculator;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
-
-    public IndexStorageService(IHashCalculator hashCalculator)
-    {
-        _hashCalculator = hashCalculator;
-    }
 
     public async Task<IndexData?> LoadLatestIndexAsync(string repositoryPath)
     {
@@ -92,7 +86,7 @@ public class IndexStorageService : IIndexStorageService
     private string GetRepositoryHash(string repositoryPath)
     {
         var normalizedPath = Path.GetFullPath(repositoryPath).ToLowerInvariant();
-        var hash = _hashCalculator.CalculateHash(normalizedPath);
+        var hash = hashCalculator.CalculateHash(normalizedPath);
         return hash.Substring(0, 8);
     }
 }
