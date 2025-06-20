@@ -16,7 +16,7 @@ public class IndexStorageService : IIndexStorageService
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
     public IndexStorageService(IHashCalculator hashCalculator)
@@ -31,19 +31,25 @@ public class IndexStorageService : IIndexStorageService
         var metadataPath = Path.Combine(indexDir, $"metadata_{repoHash}.json");
 
         if (!File.Exists(metadataPath))
+        {
             return null;
+        }
 
         try
         {
             var metadataJson = await File.ReadAllTextAsync(metadataPath);
             var metadata = JsonSerializer.Deserialize<IndexMetadata>(metadataJson, _jsonOptions);
-            
+
             if (metadata?.LatestIndexFile == null)
+            {
                 return null;
+            }
 
             var indexPath = Path.Combine(indexDir, metadata.LatestIndexFile);
             if (!File.Exists(indexPath))
+            {
                 return null;
+            }
 
             var indexJson = await File.ReadAllTextAsync(indexPath);
             return JsonSerializer.Deserialize<IndexData>(indexJson, _jsonOptions);
@@ -70,7 +76,7 @@ public class IndexStorageService : IIndexStorageService
         {
             RepositoryPath = repositoryPath,
             LatestIndexFile = indexFileName,
-            LastUpdated = indexData.Timestamp
+            LastUpdated = indexData.Timestamp,
         };
 
         var metadataPath = Path.Combine(indexDir, $"metadata_{repoHash}.json");
