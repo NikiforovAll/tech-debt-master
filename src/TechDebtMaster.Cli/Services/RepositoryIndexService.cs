@@ -10,9 +10,11 @@ public class IndexResult
 {
     public string FileSummary { get; set; } = string.Empty;
     public IndexSummary ChangeSummary { get; set; } = new();
-    public bool HasChanges => ChangeSummary.ChangedFiles.Any() || 
-                              ChangeSummary.NewFiles.Any() || 
-                              ChangeSummary.DeletedFiles.Any();
+    public AnalysisReport? AnalysisReport { get; set; }
+    public bool HasChanges =>
+        ChangeSummary.ChangedFiles.Any()
+        || ChangeSummary.NewFiles.Any()
+        || ChangeSummary.DeletedFiles.Any();
 }
 
 public class RepositoryIndexService : IRepositoryIndexService
@@ -21,34 +23,38 @@ public class RepositoryIndexService : IRepositoryIndexService
     private readonly IHashCalculator _hashCalculator;
     private readonly IChangeDetector _changeDetector;
     private readonly IRepomixParser _repomixParser;
+    private readonly IAnalysisService _analysisService;
     private string _lastIndexedContent = string.Empty;
 
     public RepositoryIndexService(
         IIndexStorageService storageService,
         IHashCalculator hashCalculator,
         IChangeDetector changeDetector,
-        IRepomixParser repomixParser)
+        IRepomixParser repomixParser,
+        IAnalysisService analysisService
+    )
     {
         _storageService = storageService;
         _hashCalculator = hashCalculator;
         _changeDetector = changeDetector;
         _repomixParser = repomixParser;
+        _analysisService = analysisService;
     }
 
     public async Task<IndexResult> IndexRepositoryAsync(string repositoryPath)
     {
         var repomixOutput = await RunRepomixAsync(repositoryPath);
         var parsedData = _repomixParser.ParseXmlOutput(repomixOutput);
-        
+
         _lastIndexedContent = parsedData.FileSummary;
 
         var previousIndex = await _storageService.LoadLatestIndexAsync(repositoryPath);
-        
+
         var currentIndex = new IndexData
         {
             Timestamp = DateTime.UtcNow,
             RepositoryPath = repositoryPath,
-            Files = new Dictionary<string, FileInfo>()
+            Files = new Dictionary<string, FileInfo>(),
         };
 
         foreach (var (path, fileData) in parsedData.Files)
@@ -57,7 +63,7 @@ public class RepositoryIndexService : IRepositoryIndexService
             {
                 Hash = _hashCalculator.CalculateHash(fileData.Content),
                 Size = fileData.Content.Length,
-                LastModified = DateTime.UtcNow
+                LastModified = DateTime.UtcNow,
             };
         }
 
@@ -66,10 +72,32 @@ public class RepositoryIndexService : IRepositoryIndexService
 
         await _storageService.SaveIndexAsync(repositoryPath, currentIndex);
 
+        // Prepare files for analysis (changed and new files)
+        var filesToAnalyze = new Dictionary<string, string>();
+        foreach (
+            var path in changeSummary
+                .ChangedFiles.Concat(changeSummary.NewFiles)
+                .Where(path => parsedData.Files.ContainsKey(path))
+        )
+        {
+            filesToAnalyze[path] = parsedData.Files[path].Content;
+        }
+
+        // Run analysis on changed files
+        AnalysisReport? analysisReport = null;
+        if (filesToAnalyze.Any())
+        {
+            analysisReport = await _analysisService.AnalyzeChangedFilesAsync(
+                filesToAnalyze,
+                repositoryPath
+            );
+        }
+
         return new IndexResult
         {
             FileSummary = parsedData.FileSummary,
-            ChangeSummary = changeSummary
+            ChangeSummary = changeSummary,
+            AnalysisReport = analysisReport,
         };
     }
 
@@ -77,7 +105,6 @@ public class RepositoryIndexService : IRepositoryIndexService
     {
         return _lastIndexedContent;
     }
-
 
     private static async Task<string> RunRepomixAsync(string repositoryPath)
     {
@@ -143,5 +170,4 @@ public class RepositoryIndexService : IRepositoryIndexService
             );
         }
     }
-
 }

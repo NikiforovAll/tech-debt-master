@@ -12,15 +12,8 @@ var app = new CommandApp(registrar);
 app.Configure(config =>
 {
     config
-        .AddCommand<IndexCommand>("index")
-        .WithDescription("Index a repository for analysis")
-        .WithExample("index", "C:\\my-repo")
-        .WithExample("index", "/home/user/my-repo");
-
-    config
         .AddCommand<AnalyzeCommand>("analyze")
         .WithDescription("Analyze a repository for technical debt")
-        .WithExample("analyze", "C:\\my-repo")
         .WithExample("analyze", "/home/user/my-repo");
 });
 
