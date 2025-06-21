@@ -54,6 +54,7 @@ public static class ServiceConfiguration
 
         // Register analysis handlers
         services.AddScoped<IAnalysisHandler, PreviewHandler>();
+        services.AddScoped<IAnalysisHandler, TechDebtAnalysisHandler>();
 
         return services;
     }
