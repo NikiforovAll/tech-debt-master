@@ -44,6 +44,12 @@ app.Configure(config =>
                 .WithDescription("Show status of previous analysis")
                 .WithExample("analyze", "status")
                 .WithExample("analyze", "status", "/home/user/my-repo");
+
+            branch
+                .AddCommand<AnalyzeDebtCommand>("debt")
+                .WithDescription("Perform debt analysis based on latest changes in index")
+                .WithExample("analyze", "debt")
+                .WithExample("analyze", "debt", "/home/user/my-repo");
         }
     );
 

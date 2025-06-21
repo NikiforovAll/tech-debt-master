@@ -1,15 +1,12 @@
 using System.ComponentModel;
-using System.Globalization;
 using System.Text.RegularExpressions;
-using Microsoft.SemanticKernel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using TechDebtMaster.Cli.Services;
 
 namespace TechDebtMaster.Cli.Commands;
 
-public class AnalyzeCommand(Kernel kernel, IRepositoryIndexService indexService)
-    : AsyncCommand<AnalyzeSettings>
+public class AnalyzeCommand(IRepositoryIndexService indexService) : AsyncCommand<AnalyzeSettings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, AnalyzeSettings settings)
     {
@@ -135,51 +132,7 @@ public class AnalyzeCommand(Kernel kernel, IRepositoryIndexService indexService)
                 }
                 AnsiConsole.WriteLine();
             }
-
-            // Create and display statistics table
-            var table = new Table();
-            table.AddColumn("[bold]Metric[/]");
-            table.AddColumn("[bold]Value[/]");
-            table.Border(TableBorder.Rounded);
-
             var summary = indexResult.ChangeSummary;
-            table.AddRow("Total files", summary.TotalFiles.ToString(CultureInfo.InvariantCulture));
-
-            if (indexResult.HasChanges)
-            {
-                table.AddRow("[green]New files[/]", $"[green]{summary.NewFiles.Count}[/]");
-                table.AddRow(
-                    "[yellow]Changed files[/]",
-                    $"[yellow]{summary.ChangedFiles.Count}[/]"
-                );
-                table.AddRow("[red]Deleted files[/]", $"[red]{summary.DeletedFiles.Count}[/]");
-            }
-            else
-            {
-                table.AddRow("[dim]Changes detected[/]", "[dim]None[/]");
-            }
-
-            // Add analysis statistics to table if available
-            if (indexResult.AnalysisReport != null)
-            {
-                var totalAnalyzed = indexResult.AnalysisReport.FileHistories.Count;
-                var changedAnalyses = indexResult.AnalysisReport.FileHistories.Count(kv =>
-                    kv.Value.Previous != null
-                    && kv.Value.Current.Preview != kv.Value.Previous.Preview
-                );
-
-                table.AddRow(
-                    "Files analyzed",
-                    totalAnalyzed.ToString(CultureInfo.InvariantCulture)
-                );
-                if (changedAnalyses > 0)
-                {
-                    table.AddRow("[yellow]Content changes[/]", $"[yellow]{changedAnalyses}[/]");
-                }
-            }
-
-            AnsiConsole.Write(table);
-            AnsiConsole.WriteLine();
 
             // Create and display repository structure tree
             if (indexResult.HasChanges)

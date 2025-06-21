@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TechDebtMaster.Cli.Services.Analysis;
 
 namespace TechDebtMaster.Cli.Services;
 
@@ -11,21 +12,20 @@ public interface IAnalysisService
     Task<AnalysisReport?> LoadAnalysisReportAsync(string repositoryPath);
 }
 
-public class AnalysisService : IAnalysisService
+public class AnalysisService(
+    IIndexStorageService storageService,
+    IHashCalculator hashCalculator,
+    IEnumerable<IAnalysisHandler> handlers
+) : IAnalysisService
 {
-    private readonly IIndexStorageService _storageService;
-    private readonly IHashCalculator _hashCalculator;
+    private readonly IIndexStorageService _storageService = storageService;
+    private readonly IHashCalculator _hashCalculator = hashCalculator;
+    private readonly IEnumerable<IAnalysisHandler> _handlers = handlers;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
-
-    public AnalysisService(IIndexStorageService storageService, IHashCalculator hashCalculator)
-    {
-        _storageService = storageService;
-        _hashCalculator = hashCalculator;
-    }
 
     public async Task<AnalysisReport> AnalyzeChangedFilesAsync(
         Dictionary<string, string> changedFiles,
@@ -50,18 +50,33 @@ public class AnalysisService : IAnalysisService
         // Analyze changed files
         foreach (var (path, content) in changedFiles)
         {
-            var currentAnalysis = new FileAnalysisEntry
-            {
-                Timestamp = DateTime.UtcNow,
-                Preview = GetPreview(content),
-                FileHash = _hashCalculator.CalculateHash(content),
-            };
-
             FileAnalysisEntry? previousAnalysis = null;
             if (previousReport?.FileHistories.ContainsKey(path) == true)
             {
                 previousAnalysis = previousReport.FileHistories[path].Current;
             }
+
+            var context = new FileAnalysisContext
+            {
+                FilePath = path,
+                Content = content,
+                FileHash = _hashCalculator.CalculateHash(content),
+                Timestamp = DateTime.UtcNow,
+                Previous = previousAnalysis,
+            };
+
+            // Process through all handlers
+            foreach (var handler in _handlers)
+            {
+                await handler.ProcessAsync(context);
+            }
+
+            var currentAnalysis = new FileAnalysisEntry
+            {
+                Timestamp = context.Timestamp,
+                AnalysisResults = context.Results,
+                FileHash = context.FileHash,
+            };
 
             report.FileHistories[path] = new FileAnalysisHistory
             {
@@ -80,19 +95,6 @@ public class AnalysisService : IAnalysisService
         return await LoadPreviousAnalysisAsync(repositoryPath);
     }
 
-    private static string GetPreview(string content)
-    {
-        if (string.IsNullOrEmpty(content))
-        {
-            return string.Empty;
-        }
-
-        var preview = content.Length > 100 ? content[..100] + "..." : content;
-
-        // Replace newlines with spaces for better display
-        return preview.Replace('\n', ' ').Replace('\r', ' ');
-    }
-
     private async Task<AnalysisReport?> LoadPreviousAnalysisAsync(string repositoryPath)
     {
         var repoHash = GetRepositoryHash(repositoryPath);
@@ -103,15 +105,8 @@ public class AnalysisService : IAnalysisService
             return null;
         }
 
-        try
-        {
-            var json = await File.ReadAllTextAsync(analysisPath);
-            return JsonSerializer.Deserialize<AnalysisReport>(json, _jsonOptions);
-        }
-        catch
-        {
-            return null;
-        }
+        var json = await File.ReadAllTextAsync(analysisPath);
+        return JsonSerializer.Deserialize<AnalysisReport>(json, _jsonOptions);
     }
 
     private async Task SaveAnalysisAsync(string repositoryPath, AnalysisReport report)
@@ -156,6 +151,6 @@ public class FileAnalysisHistory
 public class FileAnalysisEntry
 {
     public DateTime Timestamp { get; set; }
-    public string Preview { get; set; } = string.Empty;
+    public Dictionary<string, object> AnalysisResults { get; set; } = [];
     public string FileHash { get; set; } = string.Empty;
 }

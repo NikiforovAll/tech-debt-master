@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using TechDebtMaster.Cli.Commands;
+using TechDebtMaster.Cli.Services.Analysis;
+using TechDebtMaster.Cli.Services.Analysis.Handlers;
 
 namespace TechDebtMaster.Cli.Services;
 
@@ -35,6 +37,7 @@ public static class ServiceConfiguration
         services.AddScoped<DefaultCommand>();
         services.AddScoped<AnalyzeCommand>();
         services.AddScoped<AnalyzeStatusCommand>();
+        services.AddScoped<AnalyzeDebtCommand>();
         services.AddScoped<CleanCommand>();
         services.AddScoped<ConfigShowCommand>();
         services.AddScoped<ConfigSetCommand>();
@@ -48,6 +51,9 @@ public static class ServiceConfiguration
         services.AddScoped<IAnalysisService, AnalysisService>();
         services.AddScoped<IDialService, DialService>();
         services.AddHttpClient<IDialService, DialService>();
+
+        // Register analysis handlers
+        services.AddScoped<IAnalysisHandler, PreviewHandler>();
 
         return services;
     }

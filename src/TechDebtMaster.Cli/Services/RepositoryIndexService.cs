@@ -16,7 +16,6 @@ public class IndexResult
 {
     public string FileSummary { get; set; } = string.Empty;
     public IndexSummary ChangeSummary { get; set; } = new();
-    public AnalysisReport? AnalysisReport { get; set; }
     public FilteringStats? FilteringStats { get; set; }
     public bool HasChanges =>
         ChangeSummary.ChangedFiles.Any()
@@ -41,22 +40,19 @@ public class RepositoryIndexService : IRepositoryIndexService
     private readonly IHashCalculator _hashCalculator;
     private readonly IChangeDetector _changeDetector;
     private readonly IRepomixParser _repomixParser;
-    private readonly IAnalysisService _analysisService;
     private string _lastIndexedContent = string.Empty;
 
     public RepositoryIndexService(
         IIndexStorageService storageService,
         IHashCalculator hashCalculator,
         IChangeDetector changeDetector,
-        IRepomixParser repomixParser,
-        IAnalysisService analysisService
+        IRepomixParser repomixParser
     )
     {
         _storageService = storageService;
         _hashCalculator = hashCalculator;
         _changeDetector = changeDetector;
         _repomixParser = repomixParser;
-        _analysisService = analysisService;
     }
 
     public async Task<IndexResult> IndexRepositoryAsync(
@@ -117,32 +113,10 @@ public class RepositoryIndexService : IRepositoryIndexService
             await _storageService.SaveIndexAsync(repositoryPath, currentIndex);
         }
 
-        // Prepare files for analysis (changed and new files)
-        var filesToAnalyze = new Dictionary<string, string>();
-        foreach (
-            var path in changeSummary
-                .ChangedFiles.Concat(changeSummary.NewFiles)
-                .Where(path => parsedData.Files.ContainsKey(path))
-        )
-        {
-            filesToAnalyze[path] = parsedData.Files[path].Content;
-        }
-
-        // Run analysis on changed files
-        AnalysisReport? analysisReport = null;
-        if (filesToAnalyze.Any())
-        {
-            analysisReport = await _analysisService.AnalyzeChangedFilesAsync(
-                filesToAnalyze,
-                repositoryPath
-            );
-        }
-
         return new IndexResult
         {
             FileSummary = parsedData.FileSummary,
             ChangeSummary = changeSummary,
-            AnalysisReport = analysisReport,
             FilteringStats = filteringStats,
         };
     }

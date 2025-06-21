@@ -112,7 +112,8 @@ public class IndexSummary
     public List<string> ChangedFiles { get; set; } = new();
     public List<string> NewFiles { get; set; } = new();
     public List<string> DeletedFiles { get; set; } = new();
-    public bool HasChanges => ChangedFiles.Any() || NewFiles.Any() || DeletedFiles.Any();
+    public bool HasChanges =>
+        ChangedFiles.Count != 0 || NewFiles.Count != 0 || DeletedFiles.Count != 0;
 }
 
 public class IndexMetadata
