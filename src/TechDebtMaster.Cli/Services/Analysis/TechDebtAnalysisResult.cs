@@ -6,11 +6,6 @@ namespace TechDebtMaster.Cli.Services.Analysis;
 public class TechDebtAnalysisResult
 {
     /// <summary>
-    /// Reference to the techdebt file containing the markdown analysis
-    /// </summary>
-    public TechDebtReference Reference { get; set; } = new();
-
-    /// <summary>
     /// Collection of technical debt items found in the analysis
     /// </summary>
     public List<TechnicalDebtItem> Items { get; set; } = [];

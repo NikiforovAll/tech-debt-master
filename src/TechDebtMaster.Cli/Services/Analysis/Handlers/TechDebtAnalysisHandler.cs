@@ -12,9 +12,6 @@ public class TechDebtAnalysisHandler(
     ITemplateService templateService
 ) : IAnalysisHandler
 {
-    private readonly Kernel _kernel = kernel;
-    private readonly ITechDebtStorageService _techDebtStorage = techDebtStorage;
-    private readonly ITemplateService _templateService = templateService;
     public const string ResultKey = "techdebt";
 
     public string HandlerName => "TechDebt";
@@ -26,20 +23,11 @@ public class TechDebtAnalysisHandler(
         if (!string.IsNullOrWhiteSpace(xmlOutput))
         {
             // Parse XML and extract debt items
-            var debtItems = ParseXmlDebtItems(xmlOutput);
+            var debtItems = await ParseXmlDebtItemsAsync(xmlOutput, context.FilePath);
 
             if (debtItems.Count > 0)
             {
-                // Save XML analysis to separate file and create analysis result
-                var reference = await _techDebtStorage.SaveTechDebtAsync(
-                    xmlOutput,
-                    context.FilePath
-                );
-                var analysisResult = new TechDebtAnalysisResult
-                {
-                    Reference = reference,
-                    Items = debtItems,
-                };
+                var analysisResult = new TechDebtAnalysisResult { Items = debtItems };
                 context.Results[ResultKey] = analysisResult;
             }
             else
@@ -62,10 +50,10 @@ public class TechDebtAnalysisHandler(
             return string.Empty;
         }
 
-        var promptyPath = await _templateService.GetTemplatePathAsync("techdebt-analysis.prompty");
+        var promptyPath = await templateService.GetTemplatePathAsync("techdebt-analysis.prompty");
 
 #pragma warning disable SKEXP0040
-        var function = _kernel.CreateFunctionFromPromptyFile(promptyPath);
+        var function = kernel.CreateFunctionFromPromptyFile(promptyPath);
 #pragma warning restore SKEXP0040
 
         var arguments = new KernelArguments
@@ -75,11 +63,14 @@ public class TechDebtAnalysisHandler(
             ["fileExtension"] = Path.GetExtension(filePath).TrimStart('.'),
         };
 
-        var result = await function.InvokeAsync(_kernel, arguments);
+        var result = await function.InvokeAsync(kernel, arguments);
         return result.ToString() ?? string.Empty;
     }
 
-    private static List<TechnicalDebtItem> ParseXmlDebtItems(string xmlContent)
+    private async Task<List<TechnicalDebtItem>> ParseXmlDebtItemsAsync(
+        string xmlContent,
+        string filePath
+    )
     {
         var debtItems = new List<TechnicalDebtItem>();
 
@@ -88,13 +79,18 @@ public class TechDebtAnalysisHandler(
 
         foreach (var debtElement in debtElements)
         {
+            var content = debtElement.Element("content")?.Value ?? string.Empty;
+
+            // Save each debt item's content to a separate file
+            var reference = await techDebtStorage.SaveTechDebtAsync(content, filePath);
+
             var debtItem = new TechnicalDebtItem
             {
                 Id = debtElement.Attribute("id")?.Value ?? string.Empty,
                 Summary = debtElement.Element("summary")?.Value ?? string.Empty,
                 Severity = ParseSeverity(debtElement.Element("severity")?.Value),
-                Tags = debtElement.Element("tags")?.Value ?? string.Empty,
-                Content = debtElement.Element("content")?.Value ?? string.Empty,
+                Tags = ParseTags(debtElement.Element("tags")?.Value),
+                Reference = reference,
             };
 
             debtItems.Add(debtItem);
@@ -105,13 +101,53 @@ public class TechDebtAnalysisHandler(
 
     private static DebtSeverity ParseSeverity(string? severityText)
     {
-        return severityText?.ToLowerInvariant() switch
+        if (string.IsNullOrWhiteSpace(severityText))
         {
-            "low" => DebtSeverity.Low,
-            "medium" => DebtSeverity.Medium,
-            "high" => DebtSeverity.High,
-            "critical" => DebtSeverity.Critical,
-            _ => DebtSeverity.Low,
+            return DebtSeverity.Low;
+        }
+
+        if (Enum.TryParse<DebtSeverity>(severityText, ignoreCase: true, out var severity))
+        {
+            return severity;
+        }
+
+        return DebtSeverity.Low;
+    }
+
+    private static DebtTag[] ParseTags(string? tagsText)
+    {
+        if (string.IsNullOrWhiteSpace(tagsText))
+        {
+            return [];
+        }
+
+        return
+        [
+            .. tagsText
+                .Split('|', StringSplitOptions.RemoveEmptyEntries)
+                .Select(tag => tag.Trim())
+                .Where(tag => !string.IsNullOrEmpty(tag))
+                .Select(ParseSingleTag)
+                .Where(tag => tag.HasValue)
+                .Select(tag => tag!.Value),
+        ];
+    }
+
+    private static DebtTag? ParseSingleTag(string tagText)
+    {
+        return tagText
+            .ToLowerInvariant()
+            .Replace("-", "", StringComparison.OrdinalIgnoreCase) switch
+        {
+            "codesmell" => DebtTag.CodeSmell,
+            "naming" => DebtTag.Naming,
+            "magicnumber" => DebtTag.MagicNumber,
+            "complexity" => DebtTag.Complexity,
+            "errorhandling" => DebtTag.ErrorHandling,
+            "outdatedpattern" => DebtTag.OutdatedPattern,
+            "todo" => DebtTag.Todo,
+            "performance" => DebtTag.Performance,
+            _ => null,
         };
     }
 }

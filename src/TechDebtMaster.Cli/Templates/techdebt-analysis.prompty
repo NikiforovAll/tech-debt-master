@@ -24,6 +24,8 @@ For each technical debt issue found, provide:
 1. A clear summary of the issue
 2. Severity level (Low, Medium, High, Critical)
 
+Output format:
+
 <debts>
 <debt id="slug-like-name">
 <summary>Example summary like a ticket number</summary>
