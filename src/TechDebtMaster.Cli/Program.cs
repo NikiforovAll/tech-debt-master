@@ -56,6 +56,14 @@ app.Configure(config =>
                 .WithExample("analyze", "debt")
                 .WithExample("analyze", "debt", "/home/user/my-repo")
                 .WithExample("analyze", "debt", "/home/user/my-repo", "--latest");
+
+            branch
+                .AddCommand<AnalyzeShowCommand>("show")
+                .WithDescription("Show technical debt statistics in a tree structure grouped by tags")
+                .WithExample("analyze", "show")
+                .WithExample("analyze", "show", "/home/user/my-repo")
+                .WithExample("analyze", "show", "/home/user/my-repo", "--severity", "High")
+                .WithExample("analyze", "show", "/home/user/my-repo", "--tag", "Performance");
         }
     );
 

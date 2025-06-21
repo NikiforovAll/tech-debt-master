@@ -6,7 +6,7 @@
     {
       "type": "dotnet",
       "task": "build",
-      "label": "dotnet: build",
+      "label": "build",
       "group": {
         "kind": "build",
         "isDefault": true

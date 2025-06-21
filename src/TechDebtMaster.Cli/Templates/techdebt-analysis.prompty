@@ -27,10 +27,10 @@ For each technical debt issue found, provide:
 Output format:
 
 <debts>
-<debt id="slug-like-name">
+<debt id="slug-like-name-based-on-issue">
 <summary>Example summary like a ticket number</summary>
 <severity>Low|Medium|High|Critical</severity>
-<tags>code-smell|naming|magic-number|complexity|error-handling|outdated-pattern|todo|performance</tags>
+<tags>code-smell|naming|magic-number|complexity|error-handling|outdated-pattern|todo|performance|general</tags>
 <content>
 Markdown content describing the issue.
 </content>

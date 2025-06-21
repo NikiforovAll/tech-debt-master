@@ -15,5 +15,6 @@ public enum DebtTag
     ErrorHandling,
     OutdatedPattern,
     Todo,
-    Performance
+    Performance,
+    General
 }
