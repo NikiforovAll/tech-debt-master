@@ -45,10 +45,6 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Markup("  [dim]└─[/] [green]status[/] [[path]]"),
             new Text("Show status of previous analysis")
         );
-        table.AddRow(
-            new Markup("[green]clean[/]"),
-            new Text("Remove the .tdm folder from the current directory")
-        );
         table.AddRow(new Markup("[green]config[/]"), new Text("Manage configuration settings"));
         table.AddRow(
             new Markup("  [dim]├─[/] [green]show[/]"),
