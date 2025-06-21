@@ -13,6 +13,10 @@ var app = new CommandApp(registrar);
 var config = new ConfigurationService();
 await config.EnsureDefaultsAsync();
 
+// Ensure templates are copied to user directory
+var templateService = new TemplateService();
+await templateService.EnsureTemplatesAsync();
+
 // Set the default command to show welcome screen
 app.SetDefaultCommand<DefaultCommand>();
 app.Configure(config =>
@@ -86,6 +90,24 @@ app.Configure(config =>
                 .AddCommand<DialLimitsCommand>("limits")
                 .WithDescription("Get token limits for a specific model")
                 .WithExample("dial", "limits", "gpt-4o-mini-2024-07-18");
+        }
+    );
+
+    config.AddBranch(
+        "prompts",
+        branch =>
+        {
+            branch.SetDescription("Manage prompt templates");
+
+            branch
+                .AddCommand<PromptsEditCommand>("edit")
+                .WithDescription("Edit a prompt template")
+                .WithExample("prompts", "edit");
+
+            branch
+                .AddCommand<PromptsRestoreTemplatesCommand>("restore")
+                .WithDescription("Restore prompt templates to default state")
+                .WithExample("prompts", "restore");
         }
     );
 });

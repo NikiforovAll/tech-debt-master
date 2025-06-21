@@ -5,11 +5,12 @@ namespace TechDebtMaster.Cli.Services.Analysis.Handlers;
 /// <summary>
 /// Handler that analyzes file content for technical debt indicators using Semantic Kernel and Prompty
 /// </summary>
-public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService techDebtStorage)
+public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService techDebtStorage, ITemplateService templateService)
     : IAnalysisHandler
 {
     private readonly Kernel _kernel = kernel;
     private readonly ITechDebtStorageService _techDebtStorage = techDebtStorage;
+    private readonly ITemplateService _templateService = templateService;
     public const string ResultKey = "techdebt";
 
     public string HandlerName => "TechDebt";
@@ -46,10 +47,7 @@ public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService tech
             return string.Empty;
         }
 
-        var assemblyDir = Path.GetDirectoryName(
-            System.Reflection.Assembly.GetExecutingAssembly().Location
-        )!;
-        var promptyPath = Path.Combine(assemblyDir, "Templates", "techdebt-analysis.prompty");
+        var promptyPath = await _templateService.GetTemplatePathAsync("techdebt-analysis.prompty");
 
 #pragma warning disable SKEXP0040
         var function = _kernel.CreateFunctionFromPromptyFile(promptyPath);

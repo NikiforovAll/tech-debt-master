@@ -43,6 +43,8 @@ public static class ServiceConfiguration
         services.AddScoped<ConfigSetCommand>();
         services.AddScoped<DialListModelsCommand>();
         services.AddScoped<DialLimitsCommand>();
+        services.AddScoped<PromptsEditCommand>();
+        services.AddScoped<PromptsRestoreTemplatesCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
         services.AddScoped<IIndexStorageService, IndexStorageService>();
         services.AddScoped<IHashCalculator, HashCalculator>();
@@ -52,6 +54,8 @@ public static class ServiceConfiguration
         services.AddScoped<IDialService, DialService>();
         services.AddHttpClient<IDialService, DialService>();
         services.AddScoped<ITechDebtStorageService, TechDebtStorageService>();
+        services.AddSingleton<ITemplateService, TemplateService>();
+        services.AddScoped<IEditorService, EditorService>();
 
         // Register analysis handlers
         services.AddScoped<IAnalysisHandler, PreviewHandler>();
