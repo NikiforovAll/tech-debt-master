@@ -33,7 +33,7 @@ Output format:
 <tags>code-smell|naming|magic-number|complexity|error-handling|outdated-pattern|todo|performance|security|general</tags>
 <content>
 ## Context: Explain the context of the code and where the issue is located.
-## Recommendation: Provide a recommendation for resolving the issue.
+### Recommendation: Provide a recommendation for resolving the issue.
 </content>
 </debt>
 </debts>
