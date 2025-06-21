@@ -8,21 +8,26 @@ public static class ServiceConfiguration
 {
     public static IServiceCollection ConfigureServices(this IServiceCollection services)
     {
+        services.AddSingleton<IConfigurationService, ConfigurationService>();
+
         var handler = new HttpClientHandler();
         handler.CheckCertificateRevocationList = false;
         var httpClient = new HttpClient(handler);
 
-        var endpoint = "https://ai-proxy.lab.epam.com/";
-        var apiKey =
-            Environment.GetEnvironmentVariable("DIAL_API_KEY")
-            ?? throw new InvalidOperationException(
-                "Environment variable 'DIAL_API_KEY' is not set. Please set it to your OpenAI API key."
-            );
-        var deploymentName = "gpt-35-turbo";
-        var apiVersion = "2023-08-01-preview";
-
         services.AddScoped<Kernel>(provider =>
         {
+            var configService = provider.GetRequiredService<IConfigurationService>();
+
+            var endpoint =
+                configService.GetAsync("ai.endpoint").Result ?? "https://ai-proxy.lab.epam.com/";
+            var apiKey =
+                configService.GetAsync("ai.key").Result
+                ?? Environment.GetEnvironmentVariable("DIAL_API_KEY")
+                ?? throw new InvalidOperationException(
+                    "AI API key not configured. Use 'config set ai.key <key>' or set DIAL_API_KEY environment variable."
+                );
+            var deploymentName = configService.GetAsync("ai.model").Result ?? "gpt-4o-mini-2024-07-18";
+
             var builder = Kernel
                 .CreateBuilder()
                 .AddAzureOpenAIChatCompletion(
@@ -36,7 +41,11 @@ public static class ServiceConfiguration
 
             return builder.Build();
         });
+        services.AddScoped<DefaultCommand>();
         services.AddScoped<AnalyzeCommand>();
+        services.AddScoped<CleanCommand>();
+        services.AddScoped<ConfigShowCommand>();
+        services.AddScoped<ConfigSetCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
         services.AddScoped<IIndexStorageService, IndexStorageService>();
         services.AddScoped<IHashCalculator, HashCalculator>();
