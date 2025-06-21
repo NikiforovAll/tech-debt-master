@@ -51,6 +51,7 @@ public static class ServiceConfiguration
         services.AddScoped<IAnalysisService, AnalysisService>();
         services.AddScoped<IDialService, DialService>();
         services.AddHttpClient<IDialService, DialService>();
+        services.AddScoped<ITechDebtStorageService, TechDebtStorageService>();
 
         // Register analysis handlers
         services.AddScoped<IAnalysisHandler, PreviewHandler>();

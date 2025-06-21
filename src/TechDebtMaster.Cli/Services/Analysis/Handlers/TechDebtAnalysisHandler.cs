@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.SemanticKernel;
 
 namespace TechDebtMaster.Cli.Services.Analysis.Handlers;
@@ -6,36 +5,45 @@ namespace TechDebtMaster.Cli.Services.Analysis.Handlers;
 /// <summary>
 /// Handler that analyzes file content for technical debt indicators using Semantic Kernel and Prompty
 /// </summary>
-public class TechDebtAnalysisHandler : IAnalysisHandler
+public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService techDebtStorage)
+    : IAnalysisHandler
 {
-    private readonly Kernel _kernel;
+    private readonly Kernel _kernel = kernel;
+    private readonly ITechDebtStorageService _techDebtStorage = techDebtStorage;
     public const string ResultKey = "techdebt";
-    private static readonly JsonSerializerOptions s_jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
-
-    public TechDebtAnalysisHandler(Kernel kernel)
-    {
-        _kernel = kernel;
-    }
 
     public string HandlerName => "TechDebt";
 
     public async Task ProcessAsync(FileAnalysisContext context)
     {
-        var technicalDebtItems = await AnalyzeTechnicalDebtAsync(context.FilePath, context.Content);
-        context.Results[ResultKey] = technicalDebtItems;
+        var markdownOutput = await AnalyzeTechnicalDebtAsync(context.FilePath, context.Content);
+
+        if (!string.IsNullOrWhiteSpace(markdownOutput))
+        {
+            // Save markdown analysis to separate file and create analysis result
+            var reference = await _techDebtStorage.SaveTechDebtAsync(
+                markdownOutput,
+                context.FilePath
+            );
+            var analysisResult = new TechDebtAnalysisResult
+            {
+                Reference = reference,
+                Severity = DebtSeverity.Low,
+            };
+            context.Results[ResultKey] = analysisResult;
+        }
+        else
+        {
+            // No technical debt found
+            context.Results[ResultKey] = null!;
+        }
     }
 
-    private async Task<TechnicalDebtItem[]> AnalyzeTechnicalDebtAsync(
-        string filePath,
-        string content
-    )
+    private async Task<string> AnalyzeTechnicalDebtAsync(string filePath, string content)
     {
         if (string.IsNullOrEmpty(content))
         {
-            return [];
+            return string.Empty;
         }
 
         var assemblyDir = Path.GetDirectoryName(
@@ -55,34 +63,6 @@ public class TechDebtAnalysisHandler : IAnalysisHandler
         };
 
         var result = await function.InvokeAsync(_kernel, arguments);
-        var jsonResponse = result.ToString();
-
-        if (string.IsNullOrWhiteSpace(jsonResponse))
-        {
-            return [];
-        }
-
-        return [new() { Summary = jsonResponse, Severity = DebtSeverity.Low }];
-
-        // var debtData = JsonSerializer.Deserialize<TechnicalDebtResponse[]>(
-        //     jsonResponse,
-        //     s_jsonOptions
-        // );
-
-        // return debtData
-        //         ?.Select(d => new TechnicalDebtItem
-        //         {
-        //             Summary = d.Summary,
-        //             Severity = Enum.TryParse<DebtSeverity>(d.Severity, true, out var severity)
-        //                 ? severity
-        //                 : DebtSeverity.Low,
-        //         })
-        //         .ToArray() ?? [];
-    }
-
-    private class TechnicalDebtResponse
-    {
-        public string Summary { get; set; } = string.Empty;
-        public string Severity { get; set; } = string.Empty;
+        return result.ToString() ?? string.Empty;
     }
 }
