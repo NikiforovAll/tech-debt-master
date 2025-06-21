@@ -34,6 +34,7 @@ public static class ServiceConfiguration
         });
         services.AddScoped<DefaultCommand>();
         services.AddScoped<AnalyzeCommand>();
+        services.AddScoped<AnalyzeStatusCommand>();
         services.AddScoped<CleanCommand>();
         services.AddScoped<ConfigShowCommand>();
         services.AddScoped<ConfigSetCommand>();

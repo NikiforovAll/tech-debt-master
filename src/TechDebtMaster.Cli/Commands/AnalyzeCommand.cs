@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.SemanticKernel;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -22,7 +23,60 @@ public class AnalyzeCommand(Kernel kernel, IRepositoryIndexService indexService)
             return 1;
         }
 
+        // Validate regex patterns before proceeding
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+            {
+                _ = new Regex(settings.IncludePattern, RegexOptions.IgnoreCase);
+            }
+            if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+            {
+                _ = new Regex(settings.ExcludePattern, RegexOptions.IgnoreCase);
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid regex pattern - {ex.Message}");
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[yellow]Regex Tips:[/]");
+            AnsiConsole.MarkupLine(
+                "• Use [cyan]\\\\[/] to escape special characters like [cyan].[/] [cyan]*[/] [cyan]+[/] [cyan]?[/] [cyan]([/] [cyan])[/] [cyan][[/] [cyan]][/]"
+            );
+            AnsiConsole.MarkupLine(
+                "• Use [cyan]$[/] to match end of filename: [cyan]\"\\.cs$\"[/] for C# files"
+            );
+            AnsiConsole.MarkupLine("• Use [cyan]|[/] for OR: [cyan]\"(Controllers|Services)/\"[/]");
+            AnsiConsole.MarkupLine(
+                "• Use [cyan].*[/] to match any characters: [cyan]\"src/.*\\.js$\"[/]"
+            );
+            AnsiConsole.MarkupLine("• Pattern matching is case-insensitive");
+            return 1;
+        }
+
         AnsiConsole.MarkupLine($"[green]Analyzing repository:[/] {settings.RepositoryPath}");
+
+        // Display filtering information if patterns are provided
+        if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+        {
+            AnsiConsole.MarkupLine(
+                $"[yellow]Include pattern:[/] [cyan]{settings.IncludePattern}[/] (only files matching this pattern will be analyzed)"
+            );
+        }
+        if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+        {
+            AnsiConsole.MarkupLine(
+                $"[yellow]Exclude pattern:[/] [cyan]{settings.ExcludePattern}[/] (files matching this pattern will be skipped)"
+            );
+        }
+
+        if (
+            !string.IsNullOrWhiteSpace(settings.IncludePattern)
+            || !string.IsNullOrWhiteSpace(settings.ExcludePattern)
+        )
+        {
+            AnsiConsole.WriteLine();
+        }
 
         IndexResult? indexResult = null;
 
@@ -38,7 +92,9 @@ public class AnalyzeCommand(Kernel kernel, IRepositoryIndexService indexService)
                         ctx.SpinnerStyle(Style.Parse("green"));
 
                         indexResult = await indexService.IndexRepositoryAsync(
-                            settings.RepositoryPath
+                            settings.RepositoryPath,
+                            settings.IncludePattern,
+                            settings.ExcludePattern
                         );
                     }
                 );
@@ -57,7 +113,28 @@ public class AnalyzeCommand(Kernel kernel, IRepositoryIndexService indexService)
             }
 
             AnsiConsole.MarkupLine($"[green]✓[/] Repository analyzed successfully!");
+
+            // Display message if no changes detected
+            if (!indexResult.HasChanges)
+            {
+                AnsiConsole.MarkupLine("[dim]No changes detected since last analysis.[/]");
+            }
+
             AnsiConsole.WriteLine();
+
+            // Display filtering results if filtering was applied
+            if (indexResult.FilteringStats?.WasFiltered == true)
+            {
+                var stats = indexResult.FilteringStats;
+                AnsiConsole.MarkupLine($"[blue]Filtering Results:[/]");
+                AnsiConsole.MarkupLine($"  Total files found: [white]{stats.TotalFiles}[/]");
+                AnsiConsole.MarkupLine($"  Files analyzed: [green]{stats.FilteredFiles}[/]");
+                if (stats.ExcludedFiles > 0)
+                {
+                    AnsiConsole.MarkupLine($"  Files excluded: [yellow]{stats.ExcludedFiles}[/]");
+                }
+                AnsiConsole.WriteLine();
+            }
 
             // Create and display statistics table
             var table = new Table();
@@ -110,6 +187,10 @@ public class AnalyzeCommand(Kernel kernel, IRepositoryIndexService indexService)
                 var tree = new Tree("[bold]Repository Structure[/]");
                 BuildFileTree(tree, summary);
                 AnsiConsole.Write(tree);
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]No file changes to display.[/]");
             }
 
             return 0;
@@ -330,4 +411,25 @@ public class AnalyzeSettings : CommandSettings
     [Description("Path to the repository to analyze")]
     [CommandArgument(0, "<REPOSITORY_PATH>")]
     public string RepositoryPath { get; init; } = string.Empty;
+
+    [Description(
+        "Regex pattern to include files (only files matching this pattern will be analyzed)\n"
+            + "Examples:\n"
+            + "  --include \"\\.cs$\"           # Only C# files\n"
+            + "  --include \"src/.*\\.js$\"     # Only JS files in src directory\n"
+            + "  --include \"(Controllers|Services)/.*\\.cs$\"  # Only C# files in Controllers or Services folders"
+    )]
+    [CommandOption("--include")]
+    public string? IncludePattern { get; init; }
+
+    [Description(
+        "Regex pattern to exclude files (files matching this pattern will be skipped)\n"
+            + "Examples:\n"
+            + "  --exclude \"\\.min\\.(js|css)$\"  # Exclude minified files\n"
+            + "  --exclude \"test.*\\.cs$\"       # Exclude test files\n"
+            + "  --exclude \"(bin|obj|node_modules)/\"  # Exclude build/dependency folders\n"
+            + "  --exclude \"\\.(log|tmp|cache)$\"      # Exclude temporary files"
+    )]
+    [CommandOption("--exclude")]
+    public string? ExcludePattern { get; init; }
 }

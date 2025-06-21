@@ -27,10 +27,25 @@ app.Configure(config =>
         }
     );
 
-    config
-        .AddCommand<AnalyzeCommand>("analyze")
-        .WithDescription("Analyze a repository for technical debt")
-        .WithExample("analyze", "/home/user/my-repo");
+    config.AddBranch(
+        "analyze",
+        branch =>
+        {
+            branch.SetDescription("Analyze repository for technical debt");
+            branch.SetDefaultCommand<AnalyzeCommand>();
+
+            branch
+                .AddCommand<AnalyzeCommand>("index")
+                .WithDescription("Analyze a repository for technical debt")
+                .WithExample("analyze", "/home/user/my-repo");
+
+            branch
+                .AddCommand<AnalyzeStatusCommand>("status")
+                .WithDescription("Show status of previous analysis")
+                .WithExample("analyze", "status")
+                .WithExample("analyze", "status", "/home/user/my-repo");
+        }
+    );
 
     config
         .AddCommand<CleanCommand>("clean")

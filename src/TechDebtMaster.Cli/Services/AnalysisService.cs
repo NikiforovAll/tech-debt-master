@@ -8,6 +8,7 @@ public interface IAnalysisService
         Dictionary<string, string> changedFiles,
         string repositoryPath
     );
+    Task<AnalysisReport?> LoadAnalysisReportAsync(string repositoryPath);
 }
 
 public class AnalysisService : IAnalysisService
@@ -72,6 +73,11 @@ public class AnalysisService : IAnalysisService
 
         await SaveAnalysisAsync(repositoryPath, report);
         return report;
+    }
+
+    public async Task<AnalysisReport?> LoadAnalysisReportAsync(string repositoryPath)
+    {
+        return await LoadPreviousAnalysisAsync(repositoryPath);
     }
 
     private static string GetPreview(string content)
