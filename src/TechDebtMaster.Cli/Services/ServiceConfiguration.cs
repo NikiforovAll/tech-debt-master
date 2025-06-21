@@ -10,32 +10,23 @@ public static class ServiceConfiguration
     {
         services.AddSingleton<IConfigurationService, ConfigurationService>();
 
-        var handler = new HttpClientHandler();
-        handler.CheckCertificateRevocationList = false;
-        var httpClient = new HttpClient(handler);
-
         services.AddScoped<Kernel>(provider =>
         {
+            var httpClient = new HttpClient(
+                new HttpClientHandler { CheckCertificateRevocationList = false }
+            );
+
             var configService = provider.GetRequiredService<IConfigurationService>();
 
-            var endpoint =
-                configService.GetAsync("ai.endpoint").Result ?? "https://ai-proxy.lab.epam.com/";
-            var apiKey =
-                configService.GetAsync("ai.key").Result
-                ?? Environment.GetEnvironmentVariable("DIAL_API_KEY")
-                ?? throw new InvalidOperationException(
-                    "AI API key not configured. Use 'config set ai.key <key>' or set DIAL_API_KEY environment variable."
-                );
-            var deploymentName = configService.GetAsync("ai.model").Result ?? "gpt-4o-mini-2024-07-18";
-
+            var config = configService.GetConfiguration();
             var builder = Kernel
                 .CreateBuilder()
                 .AddAzureOpenAIChatCompletion(
-                    deploymentName: deploymentName,
-                    endpoint: endpoint,
-                    apiKey: apiKey,
+                    deploymentName: config.Model,
+                    endpoint: config.BaseUrl,
+                    apiKey: config.ApiKey,
                     serviceId: null,
-                    modelId: deploymentName,
+                    modelId: config.Model,
                     httpClient: httpClient
                 );
 
@@ -46,12 +37,16 @@ public static class ServiceConfiguration
         services.AddScoped<CleanCommand>();
         services.AddScoped<ConfigShowCommand>();
         services.AddScoped<ConfigSetCommand>();
+        services.AddScoped<DialListModelsCommand>();
+        services.AddScoped<DialLimitsCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
         services.AddScoped<IIndexStorageService, IndexStorageService>();
         services.AddScoped<IHashCalculator, HashCalculator>();
         services.AddScoped<IChangeDetector, ChangeDetector>();
         services.AddScoped<IRepomixParser, RepomixParser>();
         services.AddScoped<IAnalysisService, AnalysisService>();
+        services.AddScoped<IDialService, DialService>();
+        services.AddHttpClient<IDialService, DialService>();
 
         return services;
     }

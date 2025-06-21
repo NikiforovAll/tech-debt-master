@@ -7,6 +7,12 @@ public class ConfigurationService : IConfigurationService
     private readonly string _configPath;
     private readonly JsonSerializerOptions _jsonOptions;
 
+    private static readonly Dictionary<string, string> s_defaultValues = new()
+    {
+        ["ai.url"] = "https://ai-proxy.lab.epam.com",
+        ["ai.model"] = "gpt-4o",
+    };
+
     public ConfigurationService()
     {
         var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -75,6 +81,43 @@ public class ConfigurationService : IConfigurationService
     {
         var json = JsonSerializer.Serialize(config, _jsonOptions);
         await File.WriteAllTextAsync(_configPath, json);
+    }
+
+    public async Task EnsureDefaultsAsync()
+    {
+        var config = await LoadConfigAsync();
+        bool hasChanges = false;
+
+        foreach (var defaultValue in s_defaultValues)
+        {
+            if (!config.ContainsKey(defaultValue.Key))
+            {
+                config[defaultValue.Key] = defaultValue.Value;
+                hasChanges = true;
+            }
+        }
+
+        if (hasChanges)
+        {
+            await SaveConfigAsync(config);
+        }
+    }
+
+    public AppConfiguration GetConfiguration()
+    {
+        var config = LoadConfigAsync().GetAwaiter().GetResult();
+        return new AppConfiguration
+        {
+            ApiKey = config.TryGetValue("ai.key", out var apiKey)
+                ? apiKey
+                : Environment.GetEnvironmentVariable("DIAL_API_KEY") ?? string.Empty,
+            BaseUrl = config.TryGetValue("ai.url", out var baseUrl)
+                ? baseUrl
+                : s_defaultValues["ai.url"],
+            Model = config.TryGetValue("ai.model", out var model)
+                ? model
+                : s_defaultValues["ai.model"],
+        };
     }
 
     private static void EnsureConfigDirectoryExists(string directory)
