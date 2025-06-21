@@ -34,26 +34,15 @@ public class FilteringStats
         !string.IsNullOrWhiteSpace(IncludePattern) || !string.IsNullOrWhiteSpace(ExcludePattern);
 }
 
-public class RepositoryIndexService : IRepositoryIndexService
+public class RepositoryIndexService(
+    IIndexStorageService storageService,
+    IHashCalculator hashCalculator,
+    IChangeDetector changeDetector,
+    IRepomixParser repomixParser,
+    IProcessRunner processRunner
+) : IRepositoryIndexService
 {
-    private readonly IIndexStorageService _storageService;
-    private readonly IHashCalculator _hashCalculator;
-    private readonly IChangeDetector _changeDetector;
-    private readonly IRepomixParser _repomixParser;
     private string _lastIndexedContent = string.Empty;
-
-    public RepositoryIndexService(
-        IIndexStorageService storageService,
-        IHashCalculator hashCalculator,
-        IChangeDetector changeDetector,
-        IRepomixParser repomixParser
-    )
-    {
-        _storageService = storageService;
-        _hashCalculator = hashCalculator;
-        _changeDetector = changeDetector;
-        _repomixParser = repomixParser;
-    }
 
     public async Task<IndexResult> IndexRepositoryAsync(
         string repositoryPath,
@@ -61,8 +50,8 @@ public class RepositoryIndexService : IRepositoryIndexService
         string? excludePattern = null
     )
     {
-        var repomixOutput = await RunRepomixAsync(repositoryPath);
-        var parsedData = _repomixParser.ParseXmlOutput(repomixOutput);
+        var repomixOutput = await processRunner.RunRepomixAsync(repositoryPath);
+        var parsedData = repomixParser.ParseXmlOutput(repomixOutput);
 
         // Apply filtering if patterns are provided
         var originalFileCount = parsedData.Files.Count;
@@ -85,32 +74,32 @@ public class RepositoryIndexService : IRepositoryIndexService
 
         _lastIndexedContent = parsedData.FileSummary;
 
-        var previousIndex = await _storageService.LoadLatestIndexAsync(repositoryPath);
+        var previousIndex = await storageService.LoadLatestIndexAsync(repositoryPath);
 
         var currentIndex = new IndexData
         {
             Timestamp = DateTime.UtcNow,
             RepositoryPath = repositoryPath,
-            Files = new Dictionary<string, FileInfo>(),
+            Files = [],
         };
 
         foreach (var (path, fileData) in parsedData.Files)
         {
             currentIndex.Files[path] = new FileInfo
             {
-                Hash = _hashCalculator.CalculateHash(fileData.Content),
+                Hash = hashCalculator.CalculateHash(fileData.Content),
                 Size = fileData.Content.Length,
                 LastModified = DateTime.UtcNow,
             };
         }
 
-        var changeSummary = _changeDetector.DetectChanges(previousIndex, currentIndex);
+        var changeSummary = changeDetector.DetectChanges(previousIndex, currentIndex);
         currentIndex.Summary = changeSummary;
 
         // Only save the index if there are changes
         if (changeSummary.HasChanges)
         {
-            await _storageService.SaveIndexAsync(repositoryPath, currentIndex);
+            await storageService.SaveIndexAsync(repositoryPath, currentIndex);
         }
 
         return new IndexResult
@@ -183,70 +172,5 @@ public class RepositoryIndexService : IRepositoryIndexService
         }
 
         return filteredData;
-    }
-
-    private static async Task<string> RunRepomixAsync(string repositoryPath)
-    {
-        try
-        {
-            using var process = new System.Diagnostics.Process();
-            process.StartInfo.FileName = "repomix.cmd";
-            process.StartInfo.Arguments = $"--stdout --style xml \"{repositoryPath}\"";
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.CreateNoWindow = true;
-
-            var outputBuilder = new System.Text.StringBuilder();
-            var errorBuilder = new System.Text.StringBuilder();
-
-            process.OutputDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputBuilder.AppendLine(e.Data);
-                }
-            };
-
-            process.ErrorDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorBuilder.AppendLine(e.Data);
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                var error = errorBuilder.ToString();
-                throw new InvalidOperationException($"Repomix failed with error: {error}");
-            }
-
-            return outputBuilder.ToString();
-        }
-        catch (System.ComponentModel.Win32Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to run repomix. Make sure it's installed and in PATH: {ex.Message}",
-                ex
-            );
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Unexpected error running repomix: {ex.Message}",
-                ex
-            );
-        }
     }
 }

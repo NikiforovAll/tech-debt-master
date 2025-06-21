@@ -12,7 +12,8 @@ namespace TechDebtMaster.Cli.Commands;
 public class AnalyzeDebtCommand(
     IIndexStorageService storageService,
     IAnalysisService analysisService,
-    IRepomixParser repomixParser
+    IRepomixParser repomixParser,
+    IProcessRunner processRunner
 ) : AsyncCommand<AnalyzeDebtSettings>
 {
     public override async Task<int> ExecuteAsync(
@@ -191,7 +192,7 @@ public class AnalyzeDebtCommand(
                     ctx.Spinner(Spinner.Known.Star);
                     ctx.SpinnerStyle(Style.Parse("green"));
 
-                    var repomixOutput = await RunRepomixAsync(repositoryPath);
+                    var repomixOutput = await processRunner.RunRepomixAsync(repositoryPath);
                     var parsedData = repomixParser.ParseXmlOutput(repomixOutput);
 
                     // Prepare files for analysis
@@ -318,64 +319,6 @@ public class AnalyzeDebtCommand(
         AnsiConsole.WriteLine();
 
         return 0;
-    }
-
-    private static async Task<string> RunRepomixAsync(string repositoryPath)
-    {
-        try
-        {
-            using var process = new System.Diagnostics.Process();
-            process.StartInfo.FileName = "repomix.cmd";
-            process.StartInfo.Arguments = $"--stdout --style xml \"{repositoryPath}\"";
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.CreateNoWindow = true;
-
-            var outputBuilder = new System.Text.StringBuilder();
-            var errorBuilder = new System.Text.StringBuilder();
-
-            process.OutputDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputBuilder.AppendLine(e.Data);
-                }
-            };
-
-            process.ErrorDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorBuilder.AppendLine(e.Data);
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                var error = errorBuilder.ToString();
-                throw new InvalidOperationException($"Repomix failed with error: {error}");
-            }
-
-            return outputBuilder.ToString();
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Unexpected error running repomix: {ex.Message}",
-                ex
-            );
-        }
     }
 
     private static string GetSeverityColor(DebtSeverity severity)

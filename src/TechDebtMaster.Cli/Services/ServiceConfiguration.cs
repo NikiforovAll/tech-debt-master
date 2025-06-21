@@ -50,6 +50,7 @@ public static class ServiceConfiguration
         services.AddScoped<IHashCalculator, HashCalculator>();
         services.AddScoped<IChangeDetector, ChangeDetector>();
         services.AddScoped<IRepomixParser, RepomixParser>();
+        services.AddScoped<IProcessRunner, ProcessRunner>();
         services.AddScoped<IAnalysisService, AnalysisService>();
         services.AddScoped<IDialService, DialService>();
         services.AddHttpClient<IDialService, DialService>();

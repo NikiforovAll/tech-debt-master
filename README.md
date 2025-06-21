@@ -98,6 +98,12 @@ Analyze a repository for technical debt (currently shows mock data):
 dotnet run --project src/TechDebtMaster.Cli -- analyze <repository-path>
 ```
 
+### Use with Claude Code
+
+```bash
+dotnet run --project ./src/TechDebtMaster.Cli/  --no-build -- analyze view ../MonkeyMCP/ --include '\.cs' --debt-id 'MonkeyMCP/MonkeyTools.cs:missing-error-handling-getmonkeys-method' --plain | claude -p "fix it" --add-dir ../MonkeyMCP
+```
+
 **Examples:**
 ```bash
 # Analyze a local repository
