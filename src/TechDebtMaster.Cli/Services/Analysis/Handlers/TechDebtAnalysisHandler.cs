@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Microsoft.SemanticKernel;
 
 namespace TechDebtMaster.Cli.Services.Analysis.Handlers;
@@ -5,8 +6,11 @@ namespace TechDebtMaster.Cli.Services.Analysis.Handlers;
 /// <summary>
 /// Handler that analyzes file content for technical debt indicators using Semantic Kernel and Prompty
 /// </summary>
-public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService techDebtStorage, ITemplateService templateService)
-    : IAnalysisHandler
+public class TechDebtAnalysisHandler(
+    Kernel kernel,
+    ITechDebtStorageService techDebtStorage,
+    ITemplateService templateService
+) : IAnalysisHandler
 {
     private readonly Kernel _kernel = kernel;
     private readonly ITechDebtStorageService _techDebtStorage = techDebtStorage;
@@ -17,21 +21,32 @@ public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService tech
 
     public async Task ProcessAsync(FileAnalysisContext context)
     {
-        var markdownOutput = await AnalyzeTechnicalDebtAsync(context.FilePath, context.Content);
+        var xmlOutput = await AnalyzeTechnicalDebtAsync(context.FilePath, context.Content);
 
-        if (!string.IsNullOrWhiteSpace(markdownOutput))
+        if (!string.IsNullOrWhiteSpace(xmlOutput))
         {
-            // Save markdown analysis to separate file and create analysis result
-            var reference = await _techDebtStorage.SaveTechDebtAsync(
-                markdownOutput,
-                context.FilePath
-            );
-            var analysisResult = new TechDebtAnalysisResult
+            // Parse XML and extract debt items
+            var debtItems = ParseXmlDebtItems(xmlOutput);
+
+            if (debtItems.Count > 0)
             {
-                Reference = reference,
-                Severity = DebtSeverity.Low,
-            };
-            context.Results[ResultKey] = analysisResult;
+                // Save XML analysis to separate file and create analysis result
+                var reference = await _techDebtStorage.SaveTechDebtAsync(
+                    xmlOutput,
+                    context.FilePath
+                );
+                var analysisResult = new TechDebtAnalysisResult
+                {
+                    Reference = reference,
+                    Items = debtItems,
+                };
+                context.Results[ResultKey] = analysisResult;
+            }
+            else
+            {
+                // No valid technical debt found
+                context.Results[ResultKey] = null!;
+            }
         }
         else
         {
@@ -62,5 +77,41 @@ public class TechDebtAnalysisHandler(Kernel kernel, ITechDebtStorageService tech
 
         var result = await function.InvokeAsync(_kernel, arguments);
         return result.ToString() ?? string.Empty;
+    }
+
+    private static List<TechnicalDebtItem> ParseXmlDebtItems(string xmlContent)
+    {
+        var debtItems = new List<TechnicalDebtItem>();
+
+        var doc = XDocument.Parse(xmlContent);
+        var debtElements = doc.Descendants("debt");
+
+        foreach (var debtElement in debtElements)
+        {
+            var debtItem = new TechnicalDebtItem
+            {
+                Id = debtElement.Attribute("id")?.Value ?? string.Empty,
+                Summary = debtElement.Element("summary")?.Value ?? string.Empty,
+                Severity = ParseSeverity(debtElement.Element("severity")?.Value),
+                Tags = debtElement.Element("tags")?.Value ?? string.Empty,
+                Content = debtElement.Element("content")?.Value ?? string.Empty,
+            };
+
+            debtItems.Add(debtItem);
+        }
+
+        return debtItems;
+    }
+
+    private static DebtSeverity ParseSeverity(string? severityText)
+    {
+        return severityText?.ToLowerInvariant() switch
+        {
+            "low" => DebtSeverity.Low,
+            "medium" => DebtSeverity.Medium,
+            "high" => DebtSeverity.High,
+            "critical" => DebtSeverity.Critical,
+            _ => DebtSeverity.Low,
+        };
     }
 }

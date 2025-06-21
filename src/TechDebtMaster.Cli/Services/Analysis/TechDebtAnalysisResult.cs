@@ -11,7 +11,7 @@ public class TechDebtAnalysisResult
     public TechDebtReference Reference { get; set; } = new();
 
     /// <summary>
-    /// Overall severity level for this analysis
+    /// Collection of technical debt items found in the analysis
     /// </summary>
-    public DebtSeverity Severity { get; set; }
+    public List<TechnicalDebtItem> Items { get; set; } = [];
 }
