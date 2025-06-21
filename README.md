@@ -21,6 +21,12 @@ TechDebtMaster is a command-line application that helps developers identify, ana
 
 ## Installation
 
+`dotnet cake --target pack`
+
+`dotnet tool install --global --add-source ./Artefacts TechDebtMaster.Cli --prerelease`
+
+`dotnet tool uninstall TechDebtMaster.Cli -g`
+
 ### Prerequisites Setup
 
 1. **Install .NET 9.0 SDK**
