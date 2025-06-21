@@ -67,6 +67,15 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Markup("  [dim]└─[/] [green]limits[/]"),
             new Text("Get token limits for a specific model")
         );
+        table.AddRow(new Markup("[green]prompts[/]"), new Text("Manage prompt templates"));
+        table.AddRow(
+            new Markup("  [dim]├─[/] [green]edit[/]"),
+            new Text("Edit a prompt template")
+        );
+        table.AddRow(
+            new Markup("  [dim]└─[/] [green]restore[/]"),
+            new Text("Restore prompt templates to default state")
+        );
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
@@ -74,24 +83,30 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         // Display examples
         AnsiConsole.MarkupLine("[bold underline]Examples:[/]");
         AnsiConsole.MarkupLine("  [dim]# Analyze a repository[/]");
-        AnsiConsole.MarkupLine("  [blue]TechDebtMaster.Cli.dll analyze index /home/user/my-repo[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze index /home/user/my-repo[/]");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Check analysis status[/]");
-        AnsiConsole.MarkupLine("  [blue]TechDebtMaster.Cli.dll analyze status /home/user/my-repo[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze status /home/user/my-repo[/]");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Set AI API key[/]");
         AnsiConsole.MarkupLine(
-            "  [blue]TechDebtMaster.Cli.dll config set ai.key [[<your-api-key>]][/]"
+            "  [blue]tdm config set ai.key [[<your-api-key>]][/]"
         );
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Get token limits for a model[/]");
         AnsiConsole.MarkupLine(
-            "  [blue]TechDebtMaster.Cli.dll dial limits[/]"
+            "  [blue]tdm dial limits[/]"
         );
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# Edit a prompt template[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm prompts edit[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# Restore prompt templates to defaults[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm prompts restore[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine(
-            "Run '[blue]TechDebtMaster.Cli.dll --help[/]' for more information."
+            "Run '[blue]tdm --help[/]' for more information."
         );
 
         return 0;
