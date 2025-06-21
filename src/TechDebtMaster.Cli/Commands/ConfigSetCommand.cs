@@ -9,7 +9,13 @@ namespace TechDebtMaster.Cli.Commands;
 public class ConfigSetCommand(IConfigurationService configurationService)
     : AsyncCommand<ConfigSetCommand.Settings>
 {
-    private static readonly HashSet<string> s_validKeys = ["ai.key", "ai.endpoint", "ai.model"];
+    private static readonly HashSet<string> s_validKeys =
+    [
+        "ai.key",
+        "ai.endpoint",
+        "ai.model",
+        "prompt.default",
+    ];
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {

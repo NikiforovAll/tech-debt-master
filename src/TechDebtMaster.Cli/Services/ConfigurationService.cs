@@ -11,6 +11,7 @@ public class ConfigurationService : IConfigurationService
     {
         ["ai.url"] = "https://ai-proxy.lab.epam.com",
         ["ai.model"] = "gpt-4o",
+        ["prompt.default"] = "techdebt-analysis",
     };
 
     public ConfigurationService()

@@ -9,7 +9,8 @@ namespace TechDebtMaster.Cli.Services.Analysis.Handlers;
 public class TechDebtAnalysisHandler(
     Kernel kernel,
     ITechDebtStorageService techDebtStorage,
-    ITemplateService templateService
+    ITemplateService templateService,
+    IConfigurationService configurationService
 ) : IAnalysisHandler
 {
     public const string ResultKey = "techdebt";
@@ -61,7 +62,10 @@ public class TechDebtAnalysisHandler(
             return string.Empty;
         }
 
-        var promptyPath = await templateService.GetTemplatePathAsync("techdebt-analysis.prompty");
+        // Get the default prompt template name from configuration
+        var defaultPrompt =
+            await configurationService.GetAsync("prompt.default") ?? "techdebt-analysis";
+        var promptyPath = await templateService.GetTemplatePathAsync($"{defaultPrompt}.prompty");
 
 #pragma warning disable SKEXP0040
         var function = kernel.CreateFunctionFromPromptyFile(promptyPath);

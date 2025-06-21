@@ -45,6 +45,7 @@ public static class ServiceConfiguration
         services.AddScoped<DialLimitsCommand>();
         services.AddScoped<PromptsEditCommand>();
         services.AddScoped<PromptsRestoreTemplatesCommand>();
+        services.AddScoped<PromptsSetDefaultCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
         services.AddScoped<IIndexStorageService, IndexStorageService>();
         services.AddScoped<IHashCalculator, HashCalculator>();

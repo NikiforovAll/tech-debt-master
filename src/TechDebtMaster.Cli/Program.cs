@@ -59,7 +59,9 @@ app.Configure(config =>
 
             branch
                 .AddCommand<AnalyzeShowCommand>("show")
-                .WithDescription("Show technical debt statistics in a tree structure grouped by tags")
+                .WithDescription(
+                    "Show technical debt statistics in a tree structure grouped by tags"
+                )
                 .WithExample("analyze", "show")
                 .WithExample("analyze", "show", "/home/user/my-repo")
                 .WithExample("analyze", "show", "/home/user/my-repo", "--severity", "High")
@@ -126,6 +128,11 @@ app.Configure(config =>
                 .AddCommand<PromptsRestoreTemplatesCommand>("restore")
                 .WithDescription("Restore prompt templates to default state")
                 .WithExample("prompts", "restore");
+
+            branch
+                .AddCommand<PromptsSetDefaultCommand>("set-default")
+                .WithDescription("Set the default prompt template")
+                .WithExample("prompts", "set-default");
         }
     );
 });
