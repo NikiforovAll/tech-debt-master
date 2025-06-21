@@ -50,6 +50,10 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Text("Show technical debt statistics in a tree structure grouped by tags")
         );
         table.AddRow(
+            new Markup("  [dim]├─[/] [green]view[/] [[path]]"),
+            new Text("View detailed content of specific technical debt items")
+        );
+        table.AddRow(
             new Markup("  [dim]└─[/] [green]status[/] [[path]]"),
             new Text("Show status of previous analysis")
         );
@@ -97,6 +101,21 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Show debt analysis in tree structure[/]");
         AnsiConsole.MarkupLine("  [blue]tdm analyze show /home/user/my-repo[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# View detailed content of specific debt items (interactive)[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze view /home/user/my-repo[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# View specific debt item by ID[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze view --debt-id \"src/Controllers/UserController.cs:TD001\"[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# Export all debt items as JSON[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze view /home/user/my-repo --json[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# Export specific debt item as markdown[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze view --debt-id \"UserController.cs:TD001\" --plain[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# Filter debt items by severity and export as XML[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze view --severity Critical --xml[/]");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Set AI API key[/]");
         AnsiConsole.MarkupLine("  [blue]tdm config set ai.key [[<your-api-key>]][/]");

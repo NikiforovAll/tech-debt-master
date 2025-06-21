@@ -30,9 +30,10 @@ Output format:
 <debt id="slug-like-name-based-on-issue">
 <summary>Example summary like a ticket number</summary>
 <severity>Low|Medium|High|Critical</severity>
-<tags>code-smell|naming|magic-number|complexity|error-handling|outdated-pattern|todo|performance|general</tags>
+<tags>code-smell|naming|magic-number|complexity|error-handling|outdated-pattern|todo|performance|security|general</tags>
 <content>
-Markdown content describing the issue.
+## Context: Explain the context of the code and where the issue is located.
+## Recommendation: Provide a recommendation for resolving the issue.
 </content>
 </debt>
 </debts>

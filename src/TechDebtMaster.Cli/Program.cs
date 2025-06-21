@@ -64,6 +64,14 @@ app.Configure(config =>
                 .WithExample("analyze", "show", "/home/user/my-repo")
                 .WithExample("analyze", "show", "/home/user/my-repo", "--severity", "High")
                 .WithExample("analyze", "show", "/home/user/my-repo", "--tag", "Performance");
+
+            branch
+                .AddCommand<AnalyzeViewCommand>("view")
+                .WithDescription("View detailed content of specific technical debt items")
+                .WithExample("analyze", "view")
+                .WithExample("analyze", "view", "/home/user/my-repo")
+                .WithExample("analyze", "view", "/home/user/my-repo", "--severity", "Critical")
+                .WithExample("analyze", "view", "/home/user/my-repo", "--tag", "Performance");
         }
     );
 
