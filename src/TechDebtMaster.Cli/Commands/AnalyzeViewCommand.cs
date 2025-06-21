@@ -13,7 +13,8 @@ namespace TechDebtMaster.Cli.Commands;
 [Description("View detailed content of specific technical debt items")]
 public class AnalyzeViewCommand(
     IAnalysisService analysisService,
-    ITechDebtStorageService techDebtStorage
+    ITechDebtStorageService techDebtStorage,
+    IConfigurationService configurationService
 ) : AsyncCommand<AnalyzeViewCommand.Settings>
 {
     private static readonly JsonSerializerOptions s_jsonOptions = new()
@@ -27,33 +28,60 @@ public class AnalyzeViewCommand(
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var repositoryPath = string.IsNullOrWhiteSpace(settings.RepositoryPath)
-            ? Directory.GetCurrentDirectory()
-            : settings.RepositoryPath;
+        var repositoryPath = settings.RepositoryPath;
+        if (string.IsNullOrWhiteSpace(repositoryPath))
+        {
+            // Try to get default from configuration
+            var defaultRepo = await configurationService.GetAsync("default.repository");
+            repositoryPath = !string.IsNullOrWhiteSpace(defaultRepo)
+                ? defaultRepo
+                : Directory.GetCurrentDirectory();
+        }
 
         if (!Directory.Exists(repositoryPath))
         {
-            AnsiConsole.MarkupLine(
-                $"[red]Error:[/] Repository path '{repositoryPath}' does not exist."
-            );
+            if (!IsNonInteractiveMode(settings))
+            {
+                AnsiConsole.MarkupLine(
+                    $"[red]Error:[/] Repository path '{repositoryPath}' does not exist."
+                );
+            }
             return 1;
+        }
+
+        // Determine include/exclude patterns (command line takes priority over defaults)
+        var includePattern = settings.IncludePattern;
+        if (string.IsNullOrWhiteSpace(includePattern))
+        {
+            var defaultInclude = await configurationService.GetAsync("default.include");
+            includePattern = !string.IsNullOrWhiteSpace(defaultInclude) ? defaultInclude : null;
+        }
+
+        var excludePattern = settings.ExcludePattern;
+        if (string.IsNullOrWhiteSpace(excludePattern))
+        {
+            var defaultExclude = await configurationService.GetAsync("default.exclude");
+            excludePattern = !string.IsNullOrWhiteSpace(defaultExclude) ? defaultExclude : null;
         }
 
         // Validate regex patterns before proceeding
         try
         {
-            if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+            if (!string.IsNullOrWhiteSpace(includePattern))
             {
-                _ = new Regex(settings.IncludePattern, RegexOptions.IgnoreCase);
+                _ = new Regex(includePattern, RegexOptions.IgnoreCase);
             }
-            if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+            if (!string.IsNullOrWhiteSpace(excludePattern))
             {
-                _ = new Regex(settings.ExcludePattern, RegexOptions.IgnoreCase);
+                _ = new Regex(excludePattern, RegexOptions.IgnoreCase);
             }
         }
         catch (ArgumentException ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid regex pattern - {ex.Message}");
+            if (!IsNonInteractiveMode(settings))
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] Invalid regex pattern - {ex.Message}");
+            }
             return 1;
         }
 
@@ -61,23 +89,29 @@ public class AnalyzeViewCommand(
         var analysisReport = await analysisService.LoadAnalysisReportAsync(repositoryPath);
         if (analysisReport == null)
         {
-            AnsiConsole.MarkupLine(
-                $"[yellow]No analysis data found for repository:[/] {repositoryPath}"
-            );
-            AnsiConsole.MarkupLine(
-                "[yellow]Run 'analyze debt <path>' first to generate analysis data.[/]"
-            );
+            if (!IsNonInteractiveMode(settings))
+            {
+                AnsiConsole.MarkupLine(
+                    $"[yellow]No analysis data found for repository:[/] {repositoryPath}"
+                );
+                AnsiConsole.MarkupLine(
+                    "[yellow]Run 'analyze debt <path>' first to generate analysis data.[/]"
+                );
+            }
             return 0;
         }
-
-        AnsiConsole.MarkupLine($"[green]Loading debt analysis for:[/] {repositoryPath}");
 
         // Extract debt items from analysis report
         var debtItems = ExtractDebtItems(analysisReport);
 
         if (debtItems.Count == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No technical debt items found in analysis results.[/]");
+            if (!IsNonInteractiveMode(settings))
+            {
+                AnsiConsole.MarkupLine(
+                    "[yellow]No technical debt items found in analysis results.[/]"
+                );
+            }
             return 0;
         }
 
@@ -86,44 +120,52 @@ public class AnalyzeViewCommand(
         {
             if (!TryParseDebtId(settings.DebtId, out var targetFilePath, out var targetItemId))
             {
-                AnsiConsole.MarkupLine(
-                    "[red]Error:[/] Invalid debt-id format. Expected '<pathToFile>:debtId'"
-                );
-                AnsiConsole.MarkupLine("Example: [cyan]src/Controllers/UserController.cs:TD001[/]");
+                if (!IsNonInteractiveMode(settings))
+                {
+                    AnsiConsole.MarkupLine(
+                        "[red]Error:[/] Invalid debt-id format. Expected '<pathToFile>:debtId'"
+                    );
+                    AnsiConsole.MarkupLine(
+                        "Example: [cyan]src/Controllers/UserController.cs:TD001[/]"
+                    );
+                }
                 return 1;
             }
 
             var specificItem = FindSpecificDebtItem(debtItems, targetFilePath, targetItemId);
             if (specificItem == null)
             {
-                AnsiConsole.MarkupLine(
-                    $"[red]Error:[/] Debt item '[yellow]{targetItemId}[/]' not found in file '[yellow]{targetFilePath}[/]'"
-                );
-
-                // Suggest similar items
-                var similarItems = debtItems
-                    .Where(item =>
-                        string.Equals(
-                            item.DebtItem.Id,
-                            targetItemId,
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                        || item.FilePath.Contains(
-                            Path.GetFileName(targetFilePath),
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                    )
-                    .Take(3)
-                    .ToList();
-
-                if (similarItems.Count > 0)
+                if (!IsNonInteractiveMode(settings))
                 {
-                    AnsiConsole.MarkupLine("[yellow]Similar items found:[/]");
-                    foreach (var similar in similarItems)
+                    AnsiConsole.MarkupLine(
+                        $"[red]Error:[/] Debt item '[yellow]{targetItemId}[/]' not found in file '[yellow]{targetFilePath}[/]'"
+                    );
+
+                    // Suggest similar items
+                    var similarItems = debtItems
+                        .Where(item =>
+                            string.Equals(
+                                item.DebtItem.Id,
+                                targetItemId,
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                            || item.FilePath.Contains(
+                                Path.GetFileName(targetFilePath),
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
+                        .Take(3)
+                        .ToList();
+
+                    if (similarItems.Count > 0)
                     {
-                        AnsiConsole.MarkupLine(
-                            $"  [cyan]{similar.FilePath}:{similar.DebtItem.Id}[/] - {similar.DebtItem.Summary}"
-                        );
+                        AnsiConsole.MarkupLine("[yellow]Similar items found:[/]");
+                        foreach (var similar in similarItems)
+                        {
+                            AnsiConsole.MarkupLine(
+                                $"  [cyan]{similar.FilePath}:{similar.DebtItem.Id}[/] - {similar.DebtItem.Summary}"
+                            );
+                        }
                     }
                 }
                 return 1;
@@ -158,16 +200,28 @@ public class AnalyzeViewCommand(
         }
 
         // Apply filtering if patterns are provided (only when debt-id not specified)
-        var filteredDebtItems = ApplyFiltering(debtItems, settings);
+        var filteredDebtItems = ApplyFiltering(debtItems, settings, includePattern, excludePattern);
 
         if (filteredDebtItems.Count == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No debt items match the specified filters.[/]");
+            if (!IsNonInteractiveMode(settings))
+            {
+                AnsiConsole.MarkupLine("[yellow]No debt items match the specified filters.[/]");
+            }
             return 0;
         }
 
         // Display filtering information
-        DisplayFilteringInfo(debtItems, filteredDebtItems, settings);
+        if (!IsNonInteractiveMode(settings))
+        {
+            DisplayFilteringInfo(
+                debtItems,
+                filteredDebtItems,
+                settings,
+                includePattern,
+                excludePattern
+            );
+        }
 
         // Check if output format is specified
         if (settings.PlainOutput || settings.JsonOutput || settings.XmlOutput)
@@ -179,9 +233,12 @@ public class AnalyzeViewCommand(
                 + (settings.XmlOutput ? 1 : 0);
             if (formatCount > 1)
             {
-                AnsiConsole.MarkupLine(
-                    "[red]Error:[/] Only one output format can be specified at a time."
-                );
+                if (!IsNonInteractiveMode(settings))
+                {
+                    AnsiConsole.MarkupLine(
+                        "[red]Error:[/] Only one output format can be specified at a time."
+                    );
+                }
                 return 1;
             }
 
@@ -282,14 +339,16 @@ public class AnalyzeViewCommand(
 
     private static List<DebtItemWithFile> ApplyFiltering(
         List<DebtItemWithFile> debtItems,
-        Settings settings
+        Settings settings,
+        string? includePattern,
+        string? excludePattern
     )
     {
-        var includeRegex = !string.IsNullOrWhiteSpace(settings.IncludePattern)
-            ? new Regex(settings.IncludePattern, RegexOptions.IgnoreCase)
+        var includeRegex = !string.IsNullOrWhiteSpace(includePattern)
+            ? new Regex(includePattern, RegexOptions.IgnoreCase)
             : null;
-        var excludeRegex = !string.IsNullOrWhiteSpace(settings.ExcludePattern)
-            ? new Regex(settings.ExcludePattern, RegexOptions.IgnoreCase)
+        var excludeRegex = !string.IsNullOrWhiteSpace(excludePattern)
+            ? new Regex(excludePattern, RegexOptions.IgnoreCase)
             : null;
 
         return
@@ -333,7 +392,9 @@ public class AnalyzeViewCommand(
     private static void DisplayFilteringInfo(
         List<DebtItemWithFile> original,
         List<DebtItemWithFile> filtered,
-        Settings settings
+        Settings settings,
+        string? includePattern,
+        string? excludePattern
     )
     {
         AnsiConsole.WriteLine();
@@ -344,16 +405,18 @@ public class AnalyzeViewCommand(
             AnsiConsole.MarkupLine($"[blue]Items after filtering:[/] {filtered.Count}");
         }
 
-        if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+        if (!string.IsNullOrWhiteSpace(includePattern))
         {
+            var source = settings.IncludePattern == includePattern ? "" : " (from default.include)";
             AnsiConsole.MarkupLine(
-                $"[yellow]Include pattern:[/] [cyan]{settings.IncludePattern}[/]"
+                $"[yellow]Include pattern{source}:[/] [cyan]{includePattern}[/]"
             );
         }
-        if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+        if (!string.IsNullOrWhiteSpace(excludePattern))
         {
+            var source = settings.ExcludePattern == excludePattern ? "" : " (from default.exclude)";
             AnsiConsole.MarkupLine(
-                $"[yellow]Exclude pattern:[/] [cyan]{settings.ExcludePattern}[/]"
+                $"[yellow]Exclude pattern{source}:[/] [cyan]{excludePattern}[/]"
             );
         }
         if (settings.SeverityFilter.HasValue)
@@ -383,7 +446,9 @@ public class AnalyzeViewCommand(
     private async Task DisplayDebtItemDetail(TechnicalDebtItem debtItem, string filePath)
     {
         AnsiConsole.WriteLine();
-        AnsiConsole.Write(new Rule("[bold]Technical Debt Item Details[/]"));
+        AnsiConsole.Write(
+            new Rule($"[bold]{filePath.EscapeMarkup()}:{debtItem.Id.EscapeMarkup()}[/]")
+        );
         AnsiConsole.WriteLine();
 
         // Display item summary information
@@ -460,22 +525,22 @@ public class AnalyzeViewCommand(
 
         foreach (var line in lines)
         {
-            var trimmedLine = line.TrimEnd();
+            var trimmedLine = line.TrimEnd().EscapeMarkup();
 
             // Handle headers
             if (trimmedLine.StartsWith("###", StringComparison.Ordinal))
             {
-                var headerText = trimmedLine.Substring(3).Trim();
+                var headerText = trimmedLine[3..].Trim();
                 AnsiConsole.MarkupLine($"[bold yellow]{headerText}[/]");
             }
             else if (trimmedLine.StartsWith("##", StringComparison.Ordinal))
             {
-                var headerText = trimmedLine.Substring(2).Trim();
+                var headerText = trimmedLine[2..].Trim();
                 AnsiConsole.MarkupLine($"[bold cyan]{headerText}[/]");
             }
             else if (trimmedLine.StartsWith('#'))
             {
-                var headerText = trimmedLine.Substring(1).Trim();
+                var headerText = trimmedLine[1..].Trim();
                 AnsiConsole.MarkupLine($"[bold green]{headerText}[/]");
             }
             // Handle code blocks (simple detection)
@@ -489,7 +554,7 @@ public class AnalyzeViewCommand(
                 || trimmedLine.StartsWith("* ", StringComparison.Ordinal)
             )
             {
-                var bulletText = trimmedLine.Substring(2);
+                var bulletText = trimmedLine[2..];
                 AnsiConsole.MarkupLine($"  [cyan]•[/] {bulletText}");
             }
             // Handle numbered lists
@@ -589,7 +654,7 @@ public class AnalyzeViewCommand(
     {
         foreach (var item in items)
         {
-            Console.WriteLine($"# Technical Debt Item: {item.Id}");
+            Console.WriteLine($"# {item.FilePath}:{item.Id}");
             Console.WriteLine();
             Console.WriteLine($"**File:** {item.FilePath}");
             Console.WriteLine($"**Summary:** {item.Summary}");
@@ -677,6 +742,11 @@ public class AnalyzeViewCommand(
         Console.WriteLine();
     }
 
+    private static bool IsNonInteractiveMode(Settings settings)
+    {
+        return settings.PlainOutput || settings.JsonOutput || settings.XmlOutput;
+    }
+
     private async Task<List<DebtItemWithContent>> LoadContentForAllItems(
         List<DebtItemWithFile> debtItems
     )
@@ -705,26 +775,15 @@ public class AnalyzeViewCommand(
 
             try
             {
-                await AnsiConsole
-                    .Status()
-                    .StartAsync(
-                        $"Loading content [[{currentItem}/{totalItems}]]: {item.DebtItem.Id}...",
-                        async ctx =>
-                        {
-                            ctx.Spinner(Spinner.Known.Dots);
-                            ctx.SpinnerStyle(Style.Parse("green"));
+                var detailedContent = await techDebtStorage.LoadTechDebtAsync(
+                    item.DebtItem.Reference
+                );
+                contentItem.Content = detailedContent ?? "";
 
-                            var detailedContent = await techDebtStorage.LoadTechDebtAsync(
-                                item.DebtItem.Reference
-                            );
-                            contentItem.Content = detailedContent ?? "";
-
-                            if (string.IsNullOrWhiteSpace(contentItem.Content))
-                            {
-                                contentItem.ContentError = "Content not available or empty";
-                            }
-                        }
-                    );
+                if (string.IsNullOrWhiteSpace(contentItem.Content))
+                {
+                    contentItem.ContentError = "Content not available or empty";
+                }
             }
             catch (Exception ex)
             {
@@ -764,7 +823,9 @@ public class AnalyzeViewCommand(
 
     public class Settings : CommandSettings
     {
-        [Description("Path to the repository (optional, defaults to current directory)")]
+        [Description(
+            "Path to the repository (optional, uses default.repository or current directory)"
+        )]
         [CommandArgument(0, "[REPOSITORY_PATH]")]
         public string? RepositoryPath { get; init; }
 
@@ -803,7 +864,7 @@ public class AnalyzeViewCommand(
         [Description(
             "View specific debt item by file path and debt ID (format: '<pathToFile>:debtId')"
         )]
-        [CommandOption("--debt-id")]
+        [CommandOption("--id")]
         public string? DebtId { get; init; }
     }
 }

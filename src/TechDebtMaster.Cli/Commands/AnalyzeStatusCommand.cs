@@ -5,8 +5,10 @@ using TechDebtMaster.Cli.Services;
 
 namespace TechDebtMaster.Cli.Commands;
 
-public class AnalyzeStatusCommand(IIndexStorageService storageService)
-    : AsyncCommand<AnalyzeStatusSettings>
+public class AnalyzeStatusCommand(
+    IIndexStorageService storageService,
+    IConfigurationService configurationService
+) : AsyncCommand<AnalyzeStatusSettings>
 {
     public override async Task<int> ExecuteAsync(
         CommandContext context,
@@ -15,9 +17,15 @@ public class AnalyzeStatusCommand(IIndexStorageService storageService)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var repositoryPath = string.IsNullOrWhiteSpace(settings.RepositoryPath)
-            ? Directory.GetCurrentDirectory()
-            : settings.RepositoryPath;
+        var repositoryPath = settings.RepositoryPath;
+        if (string.IsNullOrWhiteSpace(repositoryPath))
+        {
+            // Try to get default from configuration
+            var defaultRepo = await configurationService.GetAsync("default.repository");
+            repositoryPath = !string.IsNullOrWhiteSpace(defaultRepo)
+                ? defaultRepo
+                : Directory.GetCurrentDirectory();
+        }
 
         if (!Directory.Exists(repositoryPath))
         {
@@ -106,7 +114,7 @@ public class AnalyzeStatusCommand(IIndexStorageService storageService)
 
 public class AnalyzeStatusSettings : CommandSettings
 {
-    [Description("Path to the repository (optional, defaults to current directory)")]
+    [Description("Path to the repository (optional, uses default.repository or current directory)")]
     [CommandArgument(0, "[REPOSITORY_PATH]")]
     public string? RepositoryPath { get; init; }
 }

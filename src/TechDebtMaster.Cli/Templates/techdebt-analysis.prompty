@@ -27,13 +27,20 @@ For each technical debt issue found, provide:
 Output format:
 
 <debts>
-<debt id="slug-like-name-based-on-issue">
+<debt id="TD001">
 <summary>Example summary like a ticket number</summary>
 <severity>Low|Medium|High|Critical</severity>
 <tags>code-smell|naming|magic-number|complexity|error-handling|outdated-pattern|todo|performance|security|general</tags>
-<content>
-## Context: Explain the context of the code and where the issue is located.
-### Recommendation: Provide a recommendation for resolving the issue.
+<content><![CDATA[
+## Context
+Explain the context of the code and where the issue is located.
+### Recommendation
+Provide a recommendation for resolving the issue.
+### Code
+```lang
+example of problematic code snippet
+```
+]]
 </content>
 </debt>
 </debts>

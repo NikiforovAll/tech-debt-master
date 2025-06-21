@@ -27,22 +27,42 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         );
         AnsiConsole.WriteLine();
 
-        // Display commands
+        // Display commands grouped by workflow
         AnsiConsole.MarkupLine("[bold underline]Available Commands:[/]");
         AnsiConsole.WriteLine();
 
         var table = new Table().Border(TableBorder.None).HideHeaders().AddColumn("").AddColumn("");
 
+        // Repository Management Workflow
         table.AddRow(
-            new Markup("[green]analyze[/]"),
-            new Text("Index and analyze repository for technical debt")
+            new Markup("[bold cyan]Repository Management[/]"),
+            new Text("")
+        );
+        table.AddRow(
+            new Markup("[green]repo[/]"),
+            new Text("Repository management and indexing operations")
         );
         table.AddRow(
             new Markup("  [dim]├─[/] [green]index[/] [[path]]"),
-            new Text("Index repository and analyze all files for technical debt")
+            new Text("Index repostitory content")
         );
         table.AddRow(
-            new Markup("  [dim]├─[/] [green]debt[/] [[path]]"),
+            new Markup("  [dim]└─[/] [green]status[/] [[path]]"),
+            new Text("Show status of previous analysis and repository changes")
+        );
+        table.AddRow(new Markup(""), new Text(""));
+
+        // Debt Analysis Workflow
+        table.AddRow(
+            new Markup("[bold yellow]Debt Analysis[/]"),
+            new Text("")
+        );
+        table.AddRow(
+            new Markup("[green]debt[/]"),
+            new Text("Technical debt analysis and reporting")
+        );
+        table.AddRow(
+            new Markup("  [dim]├─[/] [green]analyze[/] [[path]]"),
             new Text("Perform debt analysis on all indexed files")
         );
         table.AddRow(
@@ -50,12 +70,15 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Text("Show technical debt statistics in a tree structure grouped by tags")
         );
         table.AddRow(
-            new Markup("  [dim]├─[/] [green]view[/] [[path]]"),
+            new Markup("  [dim]└─[/] [green]view[/] [[path]]"),
             new Text("View detailed content of specific technical debt items")
         );
+        table.AddRow(new Markup(""), new Text(""));
+
+        // System Management
         table.AddRow(
-            new Markup("  [dim]└─[/] [green]status[/] [[path]]"),
-            new Text("Show status of previous analysis")
+            new Markup("[bold green]System Management[/]"),
+            new Text("")
         );
         table.AddRow(new Markup("[green]config[/]"), new Text("Manage configuration settings"));
         table.AddRow(
@@ -66,6 +89,16 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Markup("  [dim]└─[/] [green]set[/] [[key]] [[value]]"),
             new Text("Set a configuration value")
         );
+        table.AddRow(new Markup("[green]prompts[/]"), new Text("Manage prompt templates"));
+        table.AddRow(new Markup("  [dim]├─[/] [green]edit[/]"), new Text("Edit a prompt template"));
+        table.AddRow(
+            new Markup("  [dim]├─[/] [green]restore[/]"),
+            new Text("Restore prompt templates to default state")
+        );
+        table.AddRow(
+            new Markup("  [dim]└─[/] [green]set-default[/]"),
+            new Text("Set the default prompt template")
+        );
         table.AddRow(new Markup("[green]dial[/]"), new Text("DIAL API operations"));
         table.AddRow(
             new Markup("  [dim]├─[/] [green]list-models[/]"),
@@ -75,59 +108,52 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Markup("  [dim]└─[/] [green]limits[/]"),
             new Text("Get token limits for a specific model")
         );
-        table.AddRow(new Markup("[green]prompts[/]"), new Text("Manage prompt templates"));
-        table.AddRow(new Markup("  [dim]├─[/] [green]edit[/]"), new Text("Edit a prompt template"));
-        table.AddRow(
-            new Markup("  [dim]└─[/] [green]restore[/]"),
-            new Text("Restore prompt templates to default state")
-        );
+        table.AddRow(new Markup("[green]clean[/]"), new Text("Remove the .tdm folder from the current directory"));
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
 
-        // Display examples
-        AnsiConsole.MarkupLine("[bold underline]Examples:[/]");
-        AnsiConsole.MarkupLine("  [dim]# Index and analyze all files in a repository[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze index /home/user/my-repo[/]");
+        // Display workflow examples
+        AnsiConsole.MarkupLine("[bold underline]Typical Workflow:[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Run debt analysis on all indexed files[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze debt /home/user/my-repo[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Run debt analysis only on latest changes[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze debt /home/user/my-repo --latest[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Check analysis status[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze status /home/user/my-repo[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Show debt analysis in tree structure[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze show /home/user/my-repo[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# View detailed content of specific debt items (interactive)[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze view /home/user/my-repo[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# View specific debt item by ID[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze view --debt-id \"src/Controllers/UserController.cs:TD001\"[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Export all debt items as JSON[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze view /home/user/my-repo --json[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Export specific debt item as markdown[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze view --debt-id \"UserController.cs:TD001\" --plain[/]");
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Filter debt items by severity and export as XML[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm analyze view --severity Critical --xml[/]");
-        AnsiConsole.WriteLine();
+        
+        AnsiConsole.MarkupLine("[bold cyan]1. Setup & Configuration[/]");
         AnsiConsole.MarkupLine("  [dim]# Set AI API key[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm config set ai.key [[<your-api-key>]][/]");
+        AnsiConsole.MarkupLine("  [blue]tdm config set ai.key <your-api-key>[/]");
+        AnsiConsole.MarkupLine("  [dim]# Set default repository path (optional)[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm config set default.repository /home/user/my-repo[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Get token limits for a model[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm dial limits[/]");
+        
+        AnsiConsole.MarkupLine("[bold cyan]2. Repository Management[/]");
+        AnsiConsole.MarkupLine("  [dim]# Index repository for analysis[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm repo index[/]");
+        AnsiConsole.MarkupLine("  [dim]# Check repository status[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm repo status[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Edit a prompt template[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm prompts edit[/]");
+        
+        AnsiConsole.MarkupLine("[bold yellow]3. Debt Analysis[/]");
+        AnsiConsole.MarkupLine("  [dim]# Analyze for technical debt[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt analyze[/]");
+        AnsiConsole.MarkupLine("  [dim]# Analyze only latest changes[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt analyze --latest[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("  [dim]# Restore prompt templates to defaults[/]");
-        AnsiConsole.MarkupLine("  [blue]tdm prompts restore[/]");
+        
+        AnsiConsole.MarkupLine("[bold yellow]4. Results & Reporting[/]");
+        AnsiConsole.MarkupLine("  [dim]# Show debt statistics in tree structure[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt show[/]");
+        AnsiConsole.MarkupLine("  [dim]# View detailed debt items (interactive)[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt view[/]");
+        AnsiConsole.MarkupLine("  [dim]# Export specific debt item as JSON[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt view --id \"UserController.cs:TD001\" --json[/]");
+        AnsiConsole.WriteLine();
+        
+        AnsiConsole.MarkupLine("[bold green]Advanced Examples:[/]");
+        AnsiConsole.MarkupLine("  [dim]# Filter by file type during indexing[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm repo index --include \"\\.cs$\"[/]");
+        AnsiConsole.MarkupLine("  [dim]# Filter debt items by severity[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt show --severity Critical[/]");
+        AnsiConsole.MarkupLine("  [dim]# Export all debt items as XML[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt view --xml[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("Run '[blue]tdm --help[/]' for more information.");

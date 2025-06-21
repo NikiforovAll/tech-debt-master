@@ -32,48 +32,56 @@ app.Configure(config =>
     );
 
     config.AddBranch(
-        "analyze",
+        "repo",
         branch =>
         {
-            branch.SetDescription("Index and analyze repository for technical debt");
-            branch.SetDefaultCommand<AnalyzeCommand>();
+            branch.SetDescription("Repository management and indexing operations");
 
             branch
-                .AddCommand<AnalyzeCommand>("index")
-                .WithDescription("Index repository and analyze all files for technical debt")
-                .WithExample("analyze index", "/home/user/my-repo")
-                .WithExample("analyze index", "/home/user/my-repo", "--latest");
+                .AddCommand<AnalyzeIndexCommand>("index")
+                .WithDescription("Index repostitory content")
+                .WithExample("repo", "index")
+                .WithExample("repo", "index", "/home/user/my-repo")
+                .WithExample("repo", "index", "/home/user/my-repo", "--include", "\\.cs$");
 
             branch
                 .AddCommand<AnalyzeStatusCommand>("status")
-                .WithDescription("Show status of previous analysis")
-                .WithExample("analyze", "status")
-                .WithExample("analyze", "status", "/home/user/my-repo");
+                .WithDescription("Show status of previous analysis and repository changes")
+                .WithExample("repo", "status")
+                .WithExample("repo", "status", "/home/user/my-repo");
+        }
+    );
+
+    config.AddBranch(
+        "debt",
+        branch =>
+        {
+            branch.SetDescription("Technical debt analysis and reporting");
 
             branch
-                .AddCommand<AnalyzeDebtCommand>("debt")
+                .AddCommand<AnalyzeDebtCommand>("analyze")
                 .WithDescription("Perform debt analysis on all indexed files")
-                .WithExample("analyze", "debt")
-                .WithExample("analyze", "debt", "/home/user/my-repo")
-                .WithExample("analyze", "debt", "/home/user/my-repo", "--latest");
+                .WithExample("debt", "analyze")
+                .WithExample("debt", "analyze", "/home/user/my-repo")
+                .WithExample("debt", "analyze", "/home/user/my-repo", "--latest");
 
             branch
                 .AddCommand<AnalyzeShowCommand>("show")
                 .WithDescription(
                     "Show technical debt statistics in a tree structure grouped by tags"
                 )
-                .WithExample("analyze", "show")
-                .WithExample("analyze", "show", "/home/user/my-repo")
-                .WithExample("analyze", "show", "/home/user/my-repo", "--severity", "High")
-                .WithExample("analyze", "show", "/home/user/my-repo", "--tag", "Performance");
+                .WithExample("debt", "show")
+                .WithExample("debt", "show", "/home/user/my-repo")
+                .WithExample("debt", "show", "/home/user/my-repo", "--severity", "High")
+                .WithExample("debt", "show", "/home/user/my-repo", "--tag", "Performance");
 
             branch
                 .AddCommand<AnalyzeViewCommand>("view")
                 .WithDescription("View detailed content of specific technical debt items")
-                .WithExample("analyze", "view")
-                .WithExample("analyze", "view", "/home/user/my-repo")
-                .WithExample("analyze", "view", "/home/user/my-repo", "--severity", "Critical")
-                .WithExample("analyze", "view", "/home/user/my-repo", "--tag", "Performance");
+                .WithExample("debt", "view")
+                .WithExample("debt", "view", "/home/user/my-repo")
+                .WithExample("debt", "view", "/home/user/my-repo", "--severity", "Critical")
+                .WithExample("debt", "view", "/home/user/my-repo", "--tag", "Performance");
         }
     );
 

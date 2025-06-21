@@ -6,30 +6,59 @@ using TechDebtMaster.Cli.Services;
 
 namespace TechDebtMaster.Cli.Commands;
 
-public class AnalyzeCommand(IRepositoryIndexService indexService) : AsyncCommand<AnalyzeSettings>
+public class AnalyzeIndexCommand(
+    IRepositoryIndexService indexService,
+    IConfigurationService configurationService
+) : AsyncCommand<AnalyzeSettings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, AnalyzeSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        if (!Directory.Exists(settings.RepositoryPath))
+        // Determine repository path
+        var repositoryPath = settings.RepositoryPath;
+        if (string.IsNullOrWhiteSpace(repositoryPath))
+        {
+            // Try to get default from configuration
+            var defaultRepo = await configurationService.GetAsync("default.repository");
+            repositoryPath = !string.IsNullOrWhiteSpace(defaultRepo)
+                ? defaultRepo
+                : Directory.GetCurrentDirectory();
+        }
+
+        if (!Directory.Exists(repositoryPath))
         {
             AnsiConsole.MarkupLine(
-                $"[red]Error:[/] Repository path '{settings.RepositoryPath}' does not exist."
+                $"[red]Error:[/] Repository path '{repositoryPath}' does not exist."
             );
             return 1;
+        }
+
+        // Determine include/exclude patterns (command line takes priority over defaults)
+        var includePattern = settings.IncludePattern;
+        if (string.IsNullOrWhiteSpace(includePattern))
+        {
+            var defaultInclude = await configurationService.GetAsync("default.include");
+            includePattern = !string.IsNullOrWhiteSpace(defaultInclude) ? defaultInclude : null;
+        }
+
+        var excludePattern = settings.ExcludePattern;
+        if (string.IsNullOrWhiteSpace(excludePattern))
+        {
+            var defaultExclude = await configurationService.GetAsync("default.exclude");
+            excludePattern = !string.IsNullOrWhiteSpace(defaultExclude) ? defaultExclude : null;
         }
 
         // Validate regex patterns before proceeding
         try
         {
-            if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+            if (!string.IsNullOrWhiteSpace(includePattern))
             {
-                _ = new Regex(settings.IncludePattern, RegexOptions.IgnoreCase);
+                _ = new Regex(includePattern, RegexOptions.IgnoreCase);
             }
-            if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+            if (!string.IsNullOrWhiteSpace(excludePattern))
             {
-                _ = new Regex(settings.ExcludePattern, RegexOptions.IgnoreCase);
+                _ = new Regex(excludePattern, RegexOptions.IgnoreCase);
             }
         }
         catch (ArgumentException ex)
@@ -51,25 +80,26 @@ public class AnalyzeCommand(IRepositoryIndexService indexService) : AsyncCommand
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]Analyzing repository:[/] {settings.RepositoryPath}");
+        AnsiConsole.MarkupLine($"[green]Analyzing repository:[/] {repositoryPath}");
 
         // Display filtering information if patterns are provided
-        if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+        if (!string.IsNullOrWhiteSpace(includePattern))
         {
+            var source = settings.IncludePattern == includePattern ? "" : " (from default.include)";
             AnsiConsole.MarkupLine(
-                $"[yellow]Include pattern:[/] [cyan]{settings.IncludePattern}[/] (only files matching this pattern will be analyzed)"
+                $"[yellow]Include pattern{source}:[/] [cyan]{includePattern}[/] (only files matching this pattern will be analyzed)"
             );
         }
-        if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+        if (!string.IsNullOrWhiteSpace(excludePattern))
         {
+            var source = settings.ExcludePattern == excludePattern ? "" : " (from default.exclude)";
             AnsiConsole.MarkupLine(
-                $"[yellow]Exclude pattern:[/] [cyan]{settings.ExcludePattern}[/] (files matching this pattern will be skipped)"
+                $"[yellow]Exclude pattern{source}:[/] [cyan]{excludePattern}[/] (files matching this pattern will be skipped)"
             );
         }
 
         if (
-            !string.IsNullOrWhiteSpace(settings.IncludePattern)
-            || !string.IsNullOrWhiteSpace(settings.ExcludePattern)
+            !string.IsNullOrWhiteSpace(includePattern) || !string.IsNullOrWhiteSpace(excludePattern)
         )
         {
             AnsiConsole.WriteLine();
@@ -89,9 +119,9 @@ public class AnalyzeCommand(IRepositoryIndexService indexService) : AsyncCommand
                         ctx.SpinnerStyle(Style.Parse("green"));
 
                         indexResult = await indexService.IndexRepositoryAsync(
-                            settings.RepositoryPath,
-                            settings.IncludePattern,
-                            settings.ExcludePattern
+                            repositoryPath,
+                            includePattern,
+                            excludePattern
                         );
                     }
                 );
@@ -361,9 +391,11 @@ public class AnalyzeCommand(IRepositoryIndexService indexService) : AsyncCommand
 
 public class AnalyzeSettings : CommandSettings
 {
-    [Description("Path to the repository to analyze")]
-    [CommandArgument(0, "<REPOSITORY_PATH>")]
-    public string RepositoryPath { get; init; } = string.Empty;
+    [Description(
+        "Path to the repository to analyze (optional, uses default.repository or current directory)"
+    )]
+    [CommandArgument(0, "[REPOSITORY_PATH]")]
+    public string? RepositoryPath { get; init; }
 
     [Description(
         "Regex pattern to include files (only files matching this pattern will be analyzed)\n"

@@ -15,6 +15,9 @@ public class ConfigSetCommand(IConfigurationService configurationService)
         "ai.endpoint",
         "ai.model",
         "prompt.default",
+        "default.repository",
+        "default.include",
+        "default.exclude",
     ];
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)

@@ -35,7 +35,7 @@ public static class ServiceConfiguration
             return builder.Build();
         });
         services.AddScoped<DefaultCommand>();
-        services.AddScoped<AnalyzeCommand>();
+        services.AddScoped<AnalyzeIndexCommand>();
         services.AddScoped<AnalyzeStatusCommand>();
         services.AddScoped<AnalyzeDebtCommand>();
         services.AddScoped<CleanCommand>();
