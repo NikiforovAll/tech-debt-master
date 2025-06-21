@@ -46,6 +46,10 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
             new Text("Perform debt analysis on all indexed files")
         );
         table.AddRow(
+            new Markup("  [dim]├─[/] [green]show[/] [[path]]"),
+            new Text("Show technical debt statistics in a tree structure grouped by tags")
+        );
+        table.AddRow(
             new Markup("  [dim]└─[/] [green]status[/] [[path]]"),
             new Text("Show status of previous analysis")
         );
@@ -90,6 +94,9 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Check analysis status[/]");
         AnsiConsole.MarkupLine("  [blue]tdm analyze status /home/user/my-repo[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [dim]# Show debt analysis in tree structure[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm analyze show /home/user/my-repo[/]");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("  [dim]# Set AI API key[/]");
         AnsiConsole.MarkupLine("  [blue]tdm config set ai.key [[<your-api-key>]][/]");
