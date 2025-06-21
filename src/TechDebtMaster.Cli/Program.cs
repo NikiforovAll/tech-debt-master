@@ -35,13 +35,14 @@ app.Configure(config =>
         "analyze",
         branch =>
         {
-            branch.SetDescription("Analyze repository for technical debt");
+            branch.SetDescription("Index and analyze repository for technical debt");
             branch.SetDefaultCommand<AnalyzeCommand>();
 
             branch
                 .AddCommand<AnalyzeCommand>("index")
-                .WithDescription("Analyze a repository for technical debt")
-                .WithExample("analyze", "/home/user/my-repo");
+                .WithDescription("Index repository and analyze all files for technical debt")
+                .WithExample("analyze index", "/home/user/my-repo")
+                .WithExample("analyze index", "/home/user/my-repo", "--latest");
 
             branch
                 .AddCommand<AnalyzeStatusCommand>("status")
@@ -51,9 +52,10 @@ app.Configure(config =>
 
             branch
                 .AddCommand<AnalyzeDebtCommand>("debt")
-                .WithDescription("Perform debt analysis based on latest changes in index")
+                .WithDescription("Perform debt analysis on all indexed files")
                 .WithExample("analyze", "debt")
-                .WithExample("analyze", "debt", "/home/user/my-repo");
+                .WithExample("analyze", "debt", "/home/user/my-repo")
+                .WithExample("analyze", "debt", "/home/user/my-repo", "--latest");
         }
     );
 

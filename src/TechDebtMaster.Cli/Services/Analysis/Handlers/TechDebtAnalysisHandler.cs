@@ -22,17 +22,28 @@ public class TechDebtAnalysisHandler(
 
         if (!string.IsNullOrWhiteSpace(xmlOutput))
         {
-            // Parse XML and extract debt items
-            var debtItems = await ParseXmlDebtItemsAsync(xmlOutput, context.FilePath);
+            // Preprocess XML to extract debts section
+            var preprocessedXml = PreprocessXmlContent(xmlOutput);
 
-            if (debtItems.Count > 0)
+            if (!string.IsNullOrWhiteSpace(preprocessedXml))
             {
-                var analysisResult = new TechDebtAnalysisResult { Items = debtItems };
-                context.Results[ResultKey] = analysisResult;
+                // Parse XML and extract debt items
+                var debtItems = await ParseXmlDebtItemsAsync(preprocessedXml, context.FilePath);
+
+                if (debtItems.Count > 0)
+                {
+                    var analysisResult = new TechDebtAnalysisResult { Items = debtItems };
+                    context.Results[ResultKey] = analysisResult;
+                }
+                else
+                {
+                    // No valid technical debt found
+                    context.Results[ResultKey] = null!;
+                }
             }
             else
             {
-                // No valid technical debt found
+                // No debts section found
                 context.Results[ResultKey] = null!;
             }
         }
@@ -65,6 +76,37 @@ public class TechDebtAnalysisHandler(
 
         var result = await function.InvokeAsync(kernel, arguments);
         return result.ToString() ?? string.Empty;
+    }
+
+    private static string PreprocessXmlContent(string xmlOutput)
+    {
+        if (string.IsNullOrWhiteSpace(xmlOutput))
+        {
+            return string.Empty;
+        }
+
+        // Find the opening and closing debts tags
+        var startTag = "<debts>";
+        var endTag = "</debts>";
+
+        var startIndex = xmlOutput.IndexOf(startTag, StringComparison.OrdinalIgnoreCase);
+        if (startIndex == -1)
+        {
+            // No debts section found, return empty
+            return string.Empty;
+        }
+
+        var endIndex = xmlOutput.IndexOf(endTag, startIndex, StringComparison.OrdinalIgnoreCase);
+        if (endIndex == -1)
+        {
+            // No closing tag found, return empty
+            return string.Empty;
+        }
+
+        // Extract the content including the debts tags
+        var debtsSection = xmlOutput.Substring(startIndex, endIndex + endTag.Length - startIndex);
+
+        return debtsSection.Trim();
     }
 
     private async Task<List<TechnicalDebtItem>> ParseXmlDebtItemsAsync(

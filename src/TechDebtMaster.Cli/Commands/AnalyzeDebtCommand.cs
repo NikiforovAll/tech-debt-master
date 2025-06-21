@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Text.RegularExpressions;
+using System.Xml;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using TechDebtMaster.Cli.Services;
@@ -32,6 +34,37 @@ public class AnalyzeDebtCommand(
             return 1;
         }
 
+        // Validate regex patterns before proceeding
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+            {
+                _ = new Regex(settings.IncludePattern, RegexOptions.IgnoreCase);
+            }
+            if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+            {
+                _ = new Regex(settings.ExcludePattern, RegexOptions.IgnoreCase);
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid regex pattern - {ex.Message}");
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[yellow]Regex Tips:[/]");
+            AnsiConsole.MarkupLine(
+                "• Use [cyan]\\\\[/] to escape special characters like [cyan].[/] [cyan]*[/] [cyan]+[/] [cyan]?[/] [cyan]([/] [cyan])[/] [cyan][[/] [cyan]][/]"
+            );
+            AnsiConsole.MarkupLine(
+                "• Use [cyan]$[/] to match end of filename: [cyan]\"\\.cs$\"[/] for C# files"
+            );
+            AnsiConsole.MarkupLine("• Use [cyan]|[/] for OR: [cyan]\"(Controllers|Services)/\"[/]");
+            AnsiConsole.MarkupLine(
+                "• Use [cyan].*[/] to match any characters: [cyan]\"src/.*\\.js$\"[/]"
+            );
+            AnsiConsole.MarkupLine("• Pattern matching is case-insensitive");
+            return 1;
+        }
+
         // Load latest index data
         var indexData = await storageService.LoadLatestIndexAsync(repositoryPath);
         if (indexData == null)
@@ -45,95 +78,244 @@ public class AnalyzeDebtCommand(
             return 0;
         }
 
-        // Check if there are any changes to analyze
-        var changesToAnalyze = indexData
-            .Summary.ChangedFiles.Concat(indexData.Summary.NewFiles)
-            .ToList();
+        // Determine which files to analyze
+        List<string> filesToAnalyze;
 
-        if (changesToAnalyze.Count == 0)
+        if (settings.LatestOnly)
         {
-            AnsiConsole.MarkupLine($"[green]No changes to analyze in:[/] {repositoryPath}");
+            // Only analyze changed files
+            filesToAnalyze = [.. indexData.Summary.ChangedFiles, .. indexData.Summary.NewFiles];
+
+            if (filesToAnalyze.Count == 0)
+            {
+                AnsiConsole.MarkupLine($"[green]No changes to analyze in:[/] {repositoryPath}");
+                AnsiConsole.MarkupLine(
+                    $"[blue]Last indexed:[/] {indexData.Timestamp:yyyy-MM-dd HH:mm:ss} UTC"
+                );
+                return 0;
+            }
+
             AnsiConsole.MarkupLine(
-                $"[blue]Last indexed:[/] {indexData.Timestamp:yyyy-MM-dd HH:mm:ss} UTC"
+                $"[green]Analyzing debt for changed files in:[/] {repositoryPath}"
             );
-            return 0;
+        }
+        else
+        {
+            // Analyze all files from the index
+            filesToAnalyze = [.. indexData.Files.Keys];
+
+            if (filesToAnalyze.Count == 0)
+            {
+                AnsiConsole.MarkupLine($"[yellow]No files found in index for:[/] {repositoryPath}");
+                AnsiConsole.MarkupLine(
+                    $"[blue]Last indexed:[/] {indexData.Timestamp:yyyy-MM-dd HH:mm:ss} UTC"
+                );
+                return 0;
+            }
+
+            AnsiConsole.MarkupLine($"[green]Analyzing debt for all files in:[/] {repositoryPath}");
         }
 
-        AnsiConsole.MarkupLine($"[green]Analyzing debt for:[/] {repositoryPath}");
+        // Apply filtering if patterns are provided
+        var originalCount = filesToAnalyze.Count;
+        if (
+            !string.IsNullOrWhiteSpace(settings.IncludePattern)
+            || !string.IsNullOrWhiteSpace(settings.ExcludePattern)
+        )
+        {
+            var includeRegex = !string.IsNullOrWhiteSpace(settings.IncludePattern)
+                ? new Regex(settings.IncludePattern, RegexOptions.IgnoreCase)
+                : null;
+            var excludeRegex = !string.IsNullOrWhiteSpace(settings.ExcludePattern)
+                ? new Regex(settings.ExcludePattern, RegexOptions.IgnoreCase)
+                : null;
+
+            filesToAnalyze =
+            [
+                .. filesToAnalyze.Where(file =>
+                {
+                    // If include pattern is specified, file must match it
+                    if (includeRegex != null && !includeRegex.IsMatch(file))
+                    {
+                        return false;
+                    }
+
+                    // If exclude pattern is specified, file must not match it
+                    if (excludeRegex != null && excludeRegex.IsMatch(file))
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }),
+            ];
+
+            // Display filtering information
+            AnsiConsole.WriteLine();
+            if (!string.IsNullOrWhiteSpace(settings.IncludePattern))
+            {
+                AnsiConsole.MarkupLine(
+                    $"[yellow]Include pattern:[/] [cyan]{settings.IncludePattern}[/]"
+                );
+            }
+            if (!string.IsNullOrWhiteSpace(settings.ExcludePattern))
+            {
+                AnsiConsole.MarkupLine(
+                    $"[yellow]Exclude pattern:[/] [cyan]{settings.ExcludePattern}[/]"
+                );
+            }
+            AnsiConsole.MarkupLine(
+                $"[blue]Files after filtering:[/] {filesToAnalyze.Count} (from {originalCount})"
+            );
+
+            if (filesToAnalyze.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[yellow]No files match the specified patterns.[/]");
+                return 0;
+            }
+        }
+
         AnsiConsole.MarkupLine(
             $"[blue]Based on index from:[/] {indexData.Timestamp:yyyy-MM-dd HH:mm:ss} UTC"
         );
+        AnsiConsole.MarkupLine($"[blue]Files to analyze:[/] {filesToAnalyze.Count}");
 
-        AnalysisReport? analysisReport = null;
-
+        // First, get the file contents from repomix
+        var filesToAnalyzeMap = new Dictionary<string, string>();
         await AnsiConsole
             .Status()
             .StartAsync(
-                "Running debt analysis on changed files...",
+                "Scanning repository files...",
                 async ctx =>
                 {
                     ctx.Spinner(Spinner.Known.Star);
                     ctx.SpinnerStyle(Style.Parse("green"));
 
-                    // Re-run repomix to get current file contents
-                    ctx.Status("Scanning repository files...");
                     var repomixOutput = await RunRepomixAsync(repositoryPath);
                     var parsedData = repomixParser.ParseXmlOutput(repomixOutput);
 
-                    // Prepare files for analysis (changed and new files only)
-                    var filesToAnalyze = new Dictionary<string, string>();
+                    // Prepare files for analysis
                     foreach (
-                        var path in changesToAnalyze.Where(path =>
-                            parsedData.Files.ContainsKey(path)
-                        )
+                        var path in filesToAnalyze.Where(path => parsedData.Files.ContainsKey(path))
                     )
                     {
-                        filesToAnalyze[path] = parsedData.Files[path].Content;
-                    }
-
-                    if (filesToAnalyze.Count != 0)
-                    {
-                        ctx.Status($"Analyzing {filesToAnalyze.Count} changed files...");
-                        analysisReport = await analysisService.AnalyzeChangedFilesAsync(
-                            filesToAnalyze,
-                            repositoryPath
-                        );
+                        filesToAnalyzeMap[path] = parsedData.Files[path].Content;
                     }
                 }
             );
 
-        if (analysisReport == null)
+        if (filesToAnalyzeMap.Count == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No files were analyzed.[/]");
+            AnsiConsole.MarkupLine("[yellow]No files were found to analyze.[/]");
             return 0;
         }
 
-        AnsiConsole.MarkupLine($"[green]✓[/] Debt analysis completed!");
-        AnsiConsole.WriteLine();
+        // Now analyze files one by one with progress display
+        var debtItemsFound = new List<(string FilePath, TechnicalDebtItem Item)>();
+        var analyzedCount = 0;
+        var filesWithDebt = 0;
+        var failedCount = 0;
 
-        // Display technical debt items found
-        DisplayTechnicalDebtItems(analysisReport, changesToAnalyze);
+        var totalFiles = filesToAnalyzeMap.Count;
+        var currentFileIndex = 0;
 
-        // Show analyzed files
-        if (analysisReport.FileHistories.Count != 0)
+        foreach (var (filePath, content) in filesToAnalyzeMap.OrderBy(kvp => kvp.Key))
         {
-            AnsiConsole.MarkupLine("[bold]Files Analyzed:[/]");
-            var fileTree = new Tree("[blue]Repository[/]");
-
-            foreach (
-                var (filePath, history) in analysisReport
-                    .FileHistories.Where(h => changesToAnalyze.Contains(h.Key))
-                    .OrderBy(kv => kv.Key)
-            )
+            currentFileIndex++;
+            try
             {
-                var status = history.Previous == null ? "[green]new[/]" : "[yellow]changed[/]";
-                var preview = GetPreviewFromResults(history.Current);
+                await AnsiConsole
+                    .Status()
+                    .StartAsync(
+                        $"[[{currentFileIndex}/{totalFiles}]] Analyzing {Path.GetFileName(filePath)}...",
+                        async ctx =>
+                        {
+                            ctx.Spinner(Spinner.Known.Dots);
+                            ctx.SpinnerStyle(Style.Parse("cyan"));
 
-                fileTree.AddNode($"{status} {filePath} [dim]- {preview}[/]");
+                            // Analyze single file
+                            var singleFileDict = new Dictionary<string, string>
+                            {
+                                { filePath, content },
+                            };
+                            var singleFileReport = await analysisService.AnalyzeChangedFilesAsync(
+                                singleFileDict,
+                                repositoryPath
+                            );
+
+                            analyzedCount++;
+
+                            if (
+                                singleFileReport?.FileHistories.TryGetValue(
+                                    filePath,
+                                    out var history
+                                ) == true
+                            )
+                            {
+                                if (
+                                    history.Current.AnalysisResults.TryGetValue(
+                                        TechDebtAnalysisHandler.ResultKey,
+                                        out var resultObj
+                                    )
+                                    && resultObj is TechDebtAnalysisResult techDebtResult
+                                    && techDebtResult.Items?.Count > 0
+                                )
+                                {
+                                    filesWithDebt++;
+                                    foreach (var item in techDebtResult.Items)
+                                    {
+                                        debtItemsFound.Add((filePath, item));
+                                    }
+
+                                    // Display debt items for this file immediately
+                                    AnsiConsole.MarkupLine(
+                                        $"[green]✓[/] {filePath} - [yellow]{techDebtResult.Items.Count} debt item(s) found[/]"
+                                    );
+                                    foreach (var item in techDebtResult.Items)
+                                    {
+                                        var severityColor = GetSeverityColor(item.Severity);
+                                        var tagsText =
+                                            item.Tags.Length > 0
+                                                ? $" [dim]({string.Join(", ", item.Tags)})[/]"
+                                                : "";
+                                        AnsiConsole.MarkupLine(
+                                            $"    [{severityColor}]●[/] [bold]{item.Id}[/]: {item.Summary}{tagsText}"
+                                        );
+                                    }
+                                }
+                                else
+                                {
+                                    AnsiConsole.MarkupLine(
+                                        $"[green]✓[/] {filePath} - [green]No debt found[/]"
+                                    );
+                                }
+                            }
+                            else
+                            {
+                                AnsiConsole.MarkupLine(
+                                    $"[yellow]⚠[/] {filePath} - [dim]Skipped[/]"
+                                );
+                            }
+                        }
+                    );
             }
-
-            AnsiConsole.Write(fileTree);
+            catch (XmlException)
+            {
+                failedCount++;
+                AnsiConsole.MarkupLine($"[red]✗[/] {filePath} - [red]XML parsing failed[/]");
+            }
         }
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"[green]✓[/] Analysis completed!");
+        AnsiConsole.MarkupLine($"[blue]Files analyzed:[/] {analyzedCount}");
+        AnsiConsole.MarkupLine($"[blue]Files with debt:[/] {filesWithDebt}");
+        if (failedCount > 0)
+        {
+            AnsiConsole.MarkupLine($"[red]Files failed:[/] {failedCount}");
+        }
+        AnsiConsole.MarkupLine($"[blue]Total debt items:[/] {debtItemsFound.Count}");
+        AnsiConsole.WriteLine();
 
         return 0;
     }
@@ -196,70 +378,6 @@ public class AnalyzeDebtCommand(
         }
     }
 
-    private static void DisplayTechnicalDebtItems(
-        AnalysisReport analysisReport,
-        List<string> changesToAnalyze
-    )
-    {
-        var debtItemsFound = new List<(string FilePath, TechnicalDebtItem Item)>();
-
-        // Extract debt items from analysis results
-        foreach (
-            var (filePath, history) in analysisReport
-                .FileHistories.Where(h => changesToAnalyze.Contains(h.Key))
-                .OrderBy(kv => kv.Key)
-        )
-        {
-            if (
-                history.Current.AnalysisResults.TryGetValue(
-                    TechDebtAnalysisHandler.ResultKey,
-                    out var resultObj
-                )
-                && resultObj is TechDebtAnalysisResult techDebtResult
-                && techDebtResult.Items?.Count > 0
-            )
-            {
-                foreach (var item in techDebtResult.Items)
-                {
-                    debtItemsFound.Add((filePath, item));
-                }
-            }
-        }
-
-        if (debtItemsFound.Count == 0)
-        {
-            AnsiConsole.MarkupLine("[green]No technical debt found in analyzed files![/]");
-            AnsiConsole.WriteLine();
-            return;
-        }
-
-        // Display debt items grouped by file
-        AnsiConsole.MarkupLine(
-            $"[bold]Technical Debt Found ({debtItemsFound.Count} item{(debtItemsFound.Count == 1 ? "" : "s")}):[/]"
-        );
-        AnsiConsole.WriteLine();
-
-        var fileGroups = debtItemsFound.GroupBy(x => x.FilePath).OrderBy(g => g.Key);
-
-        foreach (var fileGroup in fileGroups)
-        {
-            AnsiConsole.MarkupLine($"[blue]{fileGroup.Key}[/]");
-
-            foreach (var (_, item) in fileGroup)
-            {
-                var severityColor = GetSeverityColor(item.Severity);
-                var tagsText =
-                    item.Tags.Length > 0 ? $" [dim]({string.Join(", ", item.Tags)})[/]" : "";
-
-                AnsiConsole.MarkupLine(
-                    $"  [{severityColor}]●[/] [bold]{item.Id}[/]: {item.Summary}{tagsText}"
-                );
-            }
-
-            AnsiConsole.WriteLine();
-        }
-    }
-
     private static string GetSeverityColor(DebtSeverity severity)
     {
         return severity switch
@@ -271,19 +389,6 @@ public class AnalyzeDebtCommand(
             _ => "gray",
         };
     }
-
-    private static string GetPreviewFromResults(FileAnalysisEntry entry)
-    {
-        if (
-            entry.AnalysisResults.TryGetValue(PreviewHandler.ResultKey, out var previewObj)
-            && previewObj is string preview
-        )
-        {
-            return preview;
-        }
-
-        return string.Empty;
-    }
 }
 
 public class AnalyzeDebtSettings : CommandSettings
@@ -291,4 +396,29 @@ public class AnalyzeDebtSettings : CommandSettings
     [Description("Path to the repository (optional, defaults to current directory)")]
     [CommandArgument(0, "[REPOSITORY_PATH]")]
     public string? RepositoryPath { get; init; }
+
+    [Description("Only analyze changed files since last index (instead of all files)")]
+    [CommandOption("--latest")]
+    public bool LatestOnly { get; init; }
+
+    [Description(
+        "Regex pattern to include files (only files matching this pattern will be analyzed)\n"
+            + "Examples:\n"
+            + "  --include \"\\.cs$\"           # Only C# files\n"
+            + "  --include \"src/.*\\.js$\"     # Only JS files in src directory\n"
+            + "  --include \"(Controllers|Services)/.*\\.cs$\"  # Only C# files in Controllers or Services folders"
+    )]
+    [CommandOption("--include")]
+    public string? IncludePattern { get; init; }
+
+    [Description(
+        "Regex pattern to exclude files (files matching this pattern will be skipped)\n"
+            + "Examples:\n"
+            + "  --exclude \"\\.min\\.(js|css)$\"  # Exclude minified files\n"
+            + "  --exclude \"test.*\\.cs$\"       # Exclude test files\n"
+            + "  --exclude \"(bin|obj|node_modules)/\"  # Exclude build/dependency folders\n"
+            + "  --exclude \"\\.(log|tmp|cache)$\"      # Exclude temporary files"
+    )]
+    [CommandOption("--exclude")]
+    public string? ExcludePattern { get; init; }
 }
