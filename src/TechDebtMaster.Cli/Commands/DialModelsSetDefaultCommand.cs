@@ -63,6 +63,8 @@ public class DialModelsSetDefaultCommand(
                             ? $"{modelId} [dim](current default)[/]"
                             : modelId;
                     })
+                    .EnableSearch()
+                    .SearchPlaceholderText("[grey](Type to search...)[/]")
             );
 
             // Set the default model in configuration

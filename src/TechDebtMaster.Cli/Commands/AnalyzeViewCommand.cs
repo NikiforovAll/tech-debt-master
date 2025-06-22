@@ -342,6 +342,8 @@ public partial class AnalyzeViewCommand(
                     .MoreChoicesText("[grey](Move up and down to reveal more items)[/]")
                     .UseConverter(option => option.DisplayText)
                     .AddChoices(selectionOptions)
+                    .EnableSearch()
+                    .SearchPlaceholderText("[grey](Type to search...)[/]")
             );
 
             // Check if exit was selected
