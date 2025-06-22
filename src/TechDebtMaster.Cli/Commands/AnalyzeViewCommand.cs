@@ -12,11 +12,13 @@ using TextCopy;
 namespace TechDebtMaster.Cli.Commands;
 
 [Description("View detailed content of specific technical debt items")]
-public class AnalyzeViewCommand(
+public partial class AnalyzeViewCommand(
     IAnalysisService analysisService,
     ITechDebtStorageService techDebtStorage,
-    IConfigurationService configurationService
-) : AsyncCommand<AnalyzeViewCommand.Settings>
+    IConfigurationService configurationService,
+    IIndexStorageService indexStorageService,
+    IHashCalculator hashCalculator
+) : AsyncCommand<AnalyzeViewCommandSettings>
 {
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
@@ -25,7 +27,10 @@ public class AnalyzeViewCommand(
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
     };
 
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    public override async Task<int> ExecuteAsync(
+        CommandContext context,
+        AnalyzeViewCommandSettings settings
+    )
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -49,6 +54,9 @@ public class AnalyzeViewCommand(
             }
             return 1;
         }
+
+        // Store the repository path for later use in delete operations
+        _currentRepositoryPath = repositoryPath;
 
         // Determine include/exclude patterns (command line takes priority over defaults)
         var includePattern = settings.IncludePattern;
@@ -198,7 +206,8 @@ public class AnalyzeViewCommand(
                 {
                     await DisplayDebtItemDetailInteractive(
                         specificItem.DebtItem,
-                        specificItem.FilePath
+                        specificItem.FilePath,
+                        repositoryPath
                     );
                 }
                 else
@@ -272,34 +281,50 @@ public class AnalyzeViewCommand(
             return 0;
         }
 
-        // Interactive mode - Create selection options ordered by priority (severity)
-        var selectionOptions = filteredDebtItems
-            .OrderByDescending(item => item.DebtItem.Severity)
-            .ThenBy(item => item.FilePath)
-            .Select(item => new DebtItemOption
-            {
-                DisplayText = FormatDebtItemForSelection(item),
-                DebtItem = item.DebtItem,
-                FilePath = item.FilePath,
-            })
-            .ToList();
-
-        // Add exit option if in interactive mode
-        if (settings.InteractiveMode)
-        {
-            selectionOptions.Add(
-                new DebtItemOption
-                {
-                    DisplayText = "[red]Exit[/]",
-                    DebtItem = null!,
-                    FilePath = "[EXIT]",
-                }
-            );
-        }
-
         // Interactive mode loop
+        var currentFilteredDebtItems = filteredDebtItems;
         while (true)
         {
+            // Create selection options ordered by priority (severity) - refresh each time
+            var selectionOptions = currentFilteredDebtItems
+                .OrderByDescending(item => item.DebtItem.Severity)
+                .ThenBy(item => item.FilePath)
+                .Select(item => new DebtItemOption
+                {
+                    DisplayText = FormatDebtItemForSelection(item),
+                    DebtItem = item.DebtItem,
+                    FilePath = item.FilePath,
+                })
+                .ToList();
+
+            // Add exit option if in interactive mode
+            if (settings.InteractiveMode)
+            {
+                selectionOptions.Add(
+                    new DebtItemOption
+                    {
+                        DisplayText = "[red]Exit[/]",
+                        DebtItem = null!,
+                        FilePath = "[EXIT]",
+                    }
+                );
+            }
+
+            // Check if no debt items remain
+            if (currentFilteredDebtItems.Count == 0)
+            {
+                if (settings.InteractiveMode)
+                {
+                    AnsiConsole.Clear();
+                    AnsiConsole.MarkupLine(
+                        "[green]All technical debt items have been processed![/]"
+                    );
+                    AnsiConsole.MarkupLine("[dim]Press any key to exit...[/]");
+                    Console.ReadKey(true);
+                }
+                break;
+            }
+
             if (settings.InteractiveMode)
             {
                 AnsiConsole.Clear();
@@ -330,10 +355,31 @@ public class AnalyzeViewCommand(
             // Load and display detailed content
             if (settings.InteractiveMode)
             {
-                await DisplayDebtItemDetailInteractive(
+                var result = await DisplayDebtItemDetailInteractive(
                     selectedOption.DebtItem,
-                    selectedOption.FilePath
+                    selectedOption.FilePath,
+                    repositoryPath
                 );
+
+                // Handle the result
+                if (result.Action == InteractiveAction.ItemDeleted)
+                {
+                    // Refresh the debt items list by reloading from the analysis report
+                    var refreshedAnalysisReport = await analysisService.LoadAnalysisReportAsync(
+                        repositoryPath
+                    );
+                    if (refreshedAnalysisReport != null)
+                    {
+                        var refreshedDebtItems = ExtractDebtItems(refreshedAnalysisReport);
+                        currentFilteredDebtItems = ApplyFiltering(
+                            refreshedDebtItems,
+                            settings,
+                            includePattern,
+                            excludePattern
+                        );
+                    }
+                }
+                // If result.Action == InteractiveAction.GoBack, just continue the loop with current items
             }
             else
             {
@@ -395,7 +441,7 @@ public class AnalyzeViewCommand(
 
     private static List<DebtItemWithFile> ApplyFiltering(
         List<DebtItemWithFile> debtItems,
-        Settings settings,
+        AnalyzeViewCommandSettings settings,
         string? includePattern,
         string? excludePattern
     )
@@ -448,7 +494,7 @@ public class AnalyzeViewCommand(
     private static void DisplayFilteringInfo(
         List<DebtItemWithFile> original,
         List<DebtItemWithFile> filtered,
-        Settings settings,
+        AnalyzeViewCommandSettings settings,
         string? includePattern,
         string? excludePattern
     )
@@ -574,7 +620,11 @@ public class AnalyzeViewCommand(
         }
     }
 
-    private async Task DisplayDebtItemDetailInteractive(TechnicalDebtItem debtItem, string filePath)
+    private async Task<InteractiveResult> DisplayDebtItemDetailInteractive(
+        TechnicalDebtItem debtItem,
+        string filePath,
+        string repositoryPath
+    )
     {
         AnsiConsole.Clear();
 
@@ -585,7 +635,7 @@ public class AnalyzeViewCommand(
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule());
         AnsiConsole.MarkupLine(
-            "[dim]Press [/][yellow]'q'[/][dim] to go back to selection | [/][yellow]'c'[/][dim] to copy ID to clipboard[/]"
+            "[dim]Press [/][yellow]'q'[/][dim] to go back | [/][yellow]'c'[/][dim] to copy ID | [/][yellow]'Ctrl+D'[/][dim] to delete item[/]"
         );
 
         // Wait for user input
@@ -594,7 +644,45 @@ public class AnalyzeViewCommand(
             var key = Console.ReadKey(true);
             if (key.Key == ConsoleKey.Q || key.KeyChar == 'q' || key.KeyChar == 'Q')
             {
-                break;
+                return new InteractiveResult { Action = InteractiveAction.GoBack };
+            }
+            else if (key.Key == ConsoleKey.D && key.Modifiers == ConsoleModifiers.Control)
+            {
+                // Delete debt item immediately without confirmation
+                var deleteResult = await DeleteDebtItemWithDetailsAsync(debtItem, filePath);
+                if (deleteResult.Success)
+                {
+                    // Show success message and return to selection
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+
+                    var statusMessage =
+                        deleteResult.ContentDeleted && deleteResult.MetadataDeleted
+                            ? $"[green]✓ Deleted debt item:[/] [cyan]{debtItem.Id.EscapeMarkup()}[/]"
+                        : deleteResult.MetadataDeleted
+                            ? $"[green]✓ Removed debt item from analysis:[/] [cyan]{debtItem.Id.EscapeMarkup()}[/] [dim](content was already missing)[/]"
+                        : $"[green]✓ Deleted content for:[/] [cyan]{debtItem.Id.EscapeMarkup()}[/] [dim](metadata will be cleaned up later)[/]";
+
+                    AnsiConsole.MarkupLine(statusMessage);
+                    await Task.Delay(1500); // Reduced delay since no confirmation needed
+                    return new InteractiveResult { Action = InteractiveAction.ItemDeleted };
+                }
+                else
+                {
+                    // Show error and restore instructions
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    AnsiConsole.MarkupLine("[red]Failed to delete debt item. Please try again.[/]");
+                    await Task.Delay(2000);
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    AnsiConsole.MarkupLine(
+                        "[dim]Press [/][yellow]'q'[/][dim] to go back | [/][yellow]'c'[/][dim] to copy ID | [/][yellow]'Ctrl+D'[/][dim] to delete item[/]"
+                    );
+                }
             }
             else if (key.Key == ConsoleKey.C || key.KeyChar == 'c' || key.KeyChar == 'C')
             {
@@ -619,7 +707,7 @@ public class AnalyzeViewCommand(
                     Console.Write("\r" + new string(' ', Console.WindowWidth));
                     Console.SetCursorPosition(0, Console.CursorTop);
                     AnsiConsole.MarkupLine(
-                        "[dim]Press [/][yellow]'q'[/][dim] to go back to selection | [/][yellow]'c'[/][dim] to copy ID to clipboard[/]"
+                        "[dim]Press [/][yellow]'q'[/][dim] to go back | [/][yellow]'c'[/][dim] to copy ID | [/][yellow]'Ctrl+D'[/][dim] to delete item[/]"
                     );
                 }
                 catch (Exception ex)
@@ -638,12 +726,15 @@ public class AnalyzeViewCommand(
                     Console.Write("\r" + new string(' ', Console.WindowWidth));
                     Console.SetCursorPosition(0, Console.CursorTop);
                     AnsiConsole.MarkupLine(
-                        "[dim]Press [/][yellow]'q'[/][dim] to go back to selection | [/][yellow]'c'[/][dim] to copy ID to clipboard[/]"
+                        "[dim]Press [/][yellow]'q'[/][dim] to go back | [/][yellow]'c'[/][dim] to copy ID | [/][yellow]'Ctrl+D'[/][dim] to delete item[/]"
                     );
                 }
 #pragma warning restore CA1031 // Do not catch general exception types
             }
         }
+
+        // This should never be reached, but just in case
+        return new InteractiveResult { Action = InteractiveAction.GoBack };
     }
 
     private static void DisplayMarkdownContent(string markdownContent)
@@ -886,7 +977,7 @@ public class AnalyzeViewCommand(
         Console.WriteLine();
     }
 
-    private static bool IsNonInteractiveMode(Settings settings)
+    private static bool IsNonInteractiveMode(AnalyzeViewCommandSettings settings)
     {
         return settings.PlainOutput || settings.JsonOutput || settings.XmlOutput;
     }
@@ -965,54 +1056,156 @@ public class AnalyzeViewCommand(
         public string? ContentError { get; set; }
     }
 
-    public class Settings : CommandSettings
+    private sealed class DeleteResult
     {
-        [Description(
-            "Path to the repository (optional, uses default.repository or current directory)"
-        )]
-        [CommandArgument(0, "[REPOSITORY_PATH]")]
-        public string? RepositoryPath { get; init; }
+        public bool ContentDeleted { get; set; } = false;
+        public bool MetadataDeleted { get; set; } = false;
+        public bool Success => ContentDeleted || MetadataDeleted;
+    }
 
-        [Description(
-            "Regex pattern to include files (only debt items from files matching this pattern will be shown)"
-        )]
-        [CommandOption("--include")]
-        public string? IncludePattern { get; init; }
+    private async Task<DeleteResult> DeleteDebtItemWithDetailsAsync(
+        TechnicalDebtItem debtItem,
+        string filePath
+    )
+    {
+        var result = new DeleteResult();
 
-        [Description(
-            "Regex pattern to exclude files (debt items from files matching this pattern will be hidden)"
-        )]
-        [CommandOption("--exclude")]
-        public string? ExcludePattern { get; init; }
+        try
+        {
+            // Get repository path for this operation
+            var repositoryPath = GetCurrentRepositoryPath();
 
-        [Description("Filter by specific severity level (Critical, High, Medium, Low)")]
-        [CommandOption("--severity")]
-        public DebtSeverity? SeverityFilter { get; init; }
+            // Step 1: Try to delete the detailed content file (may fail if already deleted)
+            try
+            {
+                result.ContentDeleted = await techDebtStorage.DeleteAsync(debtItem.Reference);
+            }
+            catch (Exception)
+            {
+                // Content file might already be deleted or inaccessible - this is OK
+                // We'll continue with metadata deletion regardless
+                result.ContentDeleted = false;
+            }
 
-        [Description("Filter by specific debt tag (CodeSmell, Naming, Performance, etc.)")]
-        [CommandOption("--tag")]
-        public DebtTag? TagFilter { get; init; }
+            // Step 2: Remove the debt item from the analysis report (this should always succeed)
+            try
+            {
+                var analysisReport = await analysisService.LoadAnalysisReportAsync(repositoryPath);
+                if (
+                    analysisReport != null
+                    && analysisReport.FileHistories.TryGetValue(filePath, out var fileHistory)
+                )
+                {
+                    // Get the current tech debt analysis results
+                    if (
+                        fileHistory.Current.AnalysisResults.TryGetValue(
+                            TechDebtAnalysisHandler.ResultKey,
+                            out var resultObj
+                        )
+                    )
+                    {
+                        // Deserialize, remove the item, and serialize back
+                        var jsonOptions = new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                            WriteIndented = false,
+                        };
 
-        [Description("Output as plain markdown format including all debt item data and content")]
-        [CommandOption("--plain")]
-        public bool PlainOutput { get; init; }
+                        var json = JsonSerializer.Serialize(resultObj, jsonOptions);
+                        var techDebtResult = JsonSerializer.Deserialize<TechDebtAnalysisResult>(
+                            json,
+                            jsonOptions
+                        );
 
-        [Description("Output as JSON format including all debt item data and content")]
-        [CommandOption("--json")]
-        public bool JsonOutput { get; init; }
+                        if (techDebtResult?.Items != null)
+                        {
+                            // Count items before removal to check if we actually removed something
+                            var originalCount = techDebtResult.Items.Count;
 
-        [Description("Output as XML format including all debt item data and content")]
-        [CommandOption("--xml")]
-        public bool XmlOutput { get; init; }
+                            // Remove the specific debt item
+                            techDebtResult.Items.RemoveAll(item =>
+                                string.Equals(
+                                    item.Id,
+                                    debtItem.Id,
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                            );
 
-        [Description(
-            "View specific debt item by file path and debt ID (format: '<pathToFile>:debtId')"
-        )]
-        [CommandOption("--id")]
-        public string? DebtId { get; init; }
+                            // Check if we actually removed an item
+                            if (techDebtResult.Items.Count < originalCount)
+                            {
+                                // Update the analysis results
+                                fileHistory.Current.AnalysisResults[
+                                    TechDebtAnalysisHandler.ResultKey
+                                ] = techDebtResult;
 
-        [Description("Enable interactive mode to browse through items and return to selection")]
-        [CommandOption("-i|--interactive")]
-        public bool InteractiveMode { get; init; }
+                                // Save the updated analysis report
+                                await SaveAnalysisReportAsync(repositoryPath, analysisReport);
+                                result.MetadataDeleted = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // If metadata deletion fails, that's a more serious issue
+                result.MetadataDeleted = false;
+            }
+
+            return result;
+        }
+        catch (Exception)
+        {
+            return result; // Return result with false values
+        }
+    }
+
+    private string _currentRepositoryPath = string.Empty;
+
+    private string GetCurrentRepositoryPath()
+    {
+        return _currentRepositoryPath;
+    }
+
+    private async Task SaveAnalysisReportAsync(string repositoryPath, AnalysisReport report)
+    {
+        // We need to use reflection or create a new analysis service method to save the report
+        // For now, let's use the existing pattern from AnalysisService
+        var repoHash = GetRepositoryHash(repositoryPath);
+        var analysisPath = GetAnalysisPath(repositoryPath, repoHash);
+
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
+
+        var json = JsonSerializer.Serialize(report, jsonOptions);
+        await File.WriteAllTextAsync(analysisPath, json);
+    }
+
+    private string GetRepositoryHash(string repositoryPath)
+    {
+        var normalizedPath = Path.GetFullPath(repositoryPath).ToLowerInvariant();
+        var hash = hashCalculator.CalculateHash(normalizedPath);
+        return hash.Substring(0, 8);
+    }
+
+    private string GetAnalysisPath(string repositoryPath, string repoHash)
+    {
+        var indexDir = indexStorageService.GetIndexDirectory(repositoryPath);
+        return Path.Combine(indexDir, $"analysis_{repoHash}.json");
+    }
+
+    private sealed class InteractiveResult
+    {
+        public InteractiveAction Action { get; set; }
+    }
+
+    private enum InteractiveAction
+    {
+        GoBack,
+        ItemDeleted,
     }
 }

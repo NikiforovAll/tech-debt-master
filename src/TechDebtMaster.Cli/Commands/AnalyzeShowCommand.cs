@@ -265,20 +265,20 @@ public class AnalyzeShowCommand(
         if (!string.IsNullOrWhiteSpace(includePattern))
         {
             var source = settings.IncludePattern == includePattern ? "" : " (from default.include)";
-            content.Add($"[yellow]Include pattern{source}:[/] [cyan]{includePattern}[/]");
+            content.Add($"[blue]Include pattern{source}:[/] [white]{includePattern}[/]");
         }
         if (!string.IsNullOrWhiteSpace(excludePattern))
         {
             var source = settings.ExcludePattern == excludePattern ? "" : " (from default.exclude)";
-            content.Add($"[yellow]Exclude pattern{source}:[/] [cyan]{excludePattern}[/]");
+            content.Add($"[blue]Exclude pattern{source}:[/] [white]{excludePattern}[/]");
         }
         if (settings.SeverityFilter.HasValue)
         {
-            content.Add($"[yellow]Severity filter:[/] [cyan]{settings.SeverityFilter.Value}[/]");
+            content.Add($"[blue]Severity filter:[/] [white]{settings.SeverityFilter.Value}[/]");
         }
         if (settings.TagFilter.HasValue)
         {
-            content.Add($"[yellow]Tag filter:[/] [cyan]{settings.TagFilter.Value}[/]");
+            content.Add($"[blue]Tag filter:[/] [white]{settings.TagFilter.Value}[/]");
         }
 
         return new Panel(string.Join("\n", content))
@@ -428,7 +428,7 @@ public class AnalyzeShowCommand(
                 {
                     var tagName = tagGroup.Key.ToString();
                     var tagItems = tagGroup.ToList();
-                    var tagNode = fileNode.AddNode($"[cyan]{tagName}[/] ({tagItems.Count} items)");
+                    var tagNode = fileNode.AddNode($"[blue]{tagName}[/] ({tagItems.Count} items)");
 
                     // Add individual debt items
                     foreach (var item in tagItems.OrderByDescending(i => i.Severity))
@@ -537,19 +537,14 @@ public class AnalyzeShowCommand(
                 .Label("[bold]Tag Distribution (Top 10)[/]")
                 .CenterLabel();
 
-            // Define colors for tags to provide variety
+            // Define harmonious colors for tags - professional palette
             var tagColors = new[]
             {
-                Color.Cyan1,
-                Color.Green,
-                Color.Yellow,
-                Color.Magenta1,
-                Color.Orange1,
-                Color.Purple,
-                Color.Turquoise2,
-                Color.Pink1,
-                Color.LightGreen,
-                Color.Gold1,
+                Color.Blue,
+                Color.Grey,
+                Color.DarkBlue,
+                Color.SlateBlue1,
+                Color.SteelBlue1,
             };
 
             for (int i = 0; i < tagGroups.Count; i++)
@@ -566,7 +561,7 @@ public class AnalyzeShowCommand(
         return new Panel(rows)
             .Header("[bold]Summary Statistics[/]")
             .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Green)
+            .BorderColor(Color.Blue)
             .Expand();
     }
 
@@ -578,7 +573,7 @@ public class AnalyzeShowCommand(
         return new Panel(tree)
             .Header("[bold]Technical Debt Analysis[/]")
             .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Cyan1)
+            .BorderColor(Color.Blue)
             .Expand();
     }
 
