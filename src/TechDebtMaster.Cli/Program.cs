@@ -88,6 +88,10 @@ app.Configure(config =>
         .AddCommand<CleanCommand>("clean")
         .WithDescription("Remove the .tdm folder from the current directory");
 
+    config
+        .AddCommand<HelpCommand>("help")
+        .WithDescription("Show detailed help with usage examples and workflows");
+
     config.AddBranch(
         "config",
         branch =>
@@ -121,7 +125,9 @@ app.Configure(config =>
                         .WithDescription("List all available DIAL models");
                     modelsBranch
                         .AddCommand<DialModelsSetDefaultCommand>("set-default")
-                        .WithDescription("Set the default model for AI operations (interactive selection)")
+                        .WithDescription(
+                            "Set the default model for AI operations (interactive selection)"
+                        )
                         .WithExample("dial", "models", "set-default");
                 }
             );

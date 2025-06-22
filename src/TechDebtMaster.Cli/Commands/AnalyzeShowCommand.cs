@@ -356,7 +356,7 @@ public class AnalyzeShowCommand(
                         directories[parentDir] = new DirectoryNode
                         {
                             Path = parentDir,
-                            Name = parentDir.Split('/').Last(),
+                            Name = parentDir.Split('/')[^1],
                             Files = [],
                             Subdirectories = [],
                         };
@@ -494,28 +494,63 @@ public class AnalyzeShowCommand(
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[bold]Summary Statistics[/]");
+        AnsiConsole.WriteLine();
 
-        // Severity distribution
+        // Severity distribution bar chart
         var severityGroups = allItems.GroupBy(item => item.Severity).OrderByDescending(g => g.Key);
+
+        var severityChart = new BarChart()
+            .Width(60)
+            .Label("[bold]Severity Distribution[/]")
+            .CenterLabel();
 
         foreach (var group in severityGroups)
         {
-            var color = GetSeverityColor(group.Key);
-            AnsiConsole.MarkupLine($"  [{color}]{group.Key}:[/] {group.Count()} items");
+            var color = GetSeverityColorEnum(group.Key);
+            severityChart.AddItem(group.Key.ToString(), group.Count(), color);
         }
 
+        AnsiConsole.Write(severityChart);
         AnsiConsole.WriteLine();
 
-        // Tag distribution
+        // Tag distribution bar chart
         var tagGroups = allItems
             .SelectMany(item => item.Tags)
             .GroupBy(tag => tag)
-            .OrderByDescending(g => g.Count());
+            .OrderByDescending(g => g.Count())
+            .Take(10) // Show top 10 tags
+            .ToList();
 
-        AnsiConsole.MarkupLine("[bold]Tag Distribution[/]");
-        foreach (var group in tagGroups.Take(10)) // Show top 10 tags
+        if (tagGroups.Count > 0)
         {
-            AnsiConsole.MarkupLine($"  [cyan]{group.Key}:[/] {group.Count()} items");
+            var tagChart = new BarChart()
+                .Width(60)
+                .Label("[bold]Tag Distribution (Top 10)[/]")
+                .CenterLabel();
+
+            // Define colors for tags to provide variety
+            var tagColors = new[]
+            {
+                Color.Cyan1,
+                Color.Green,
+                Color.Yellow,
+                Color.Magenta1,
+                Color.Orange1,
+                Color.Purple,
+                Color.Turquoise2,
+                Color.Pink1,
+                Color.LightGreen,
+                Color.Gold1,
+            };
+
+            for (int i = 0; i < tagGroups.Count; i++)
+            {
+                var group = tagGroups[i];
+                var color = tagColors[i % tagColors.Length];
+                tagChart.AddItem(group.Key.ToString(), group.Count(), color);
+            }
+
+            AnsiConsole.Write(tagChart);
         }
     }
 
@@ -539,6 +574,18 @@ public class AnalyzeShowCommand(
             DebtSeverity.Medium => "yellow",
             DebtSeverity.Low => "green",
             _ => "gray",
+        };
+    }
+
+    private static Color GetSeverityColorEnum(DebtSeverity severity)
+    {
+        return severity switch
+        {
+            DebtSeverity.Critical => Color.Red,
+            DebtSeverity.High => Color.Orange3,
+            DebtSeverity.Medium => Color.Yellow,
+            DebtSeverity.Low => Color.Green,
+            _ => Color.Grey,
         };
     }
 
