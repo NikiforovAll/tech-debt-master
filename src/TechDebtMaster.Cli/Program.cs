@@ -22,7 +22,6 @@ app.SetDefaultCommand<DefaultCommand>();
 app.Configure(config =>
 {
     // Configure exception handling
-    config.PropagateExceptions();
     config.SetExceptionHandler(
         (ex, _) =>
         {
@@ -111,9 +110,22 @@ app.Configure(config =>
         {
             branch.SetDescription("DIAL API operations");
 
-            branch
-                .AddCommand<DialListModelsCommand>("list-models")
-                .WithDescription("List all available DIAL models");
+            branch.AddBranch(
+                "models",
+                modelsBranch =>
+                {
+                    modelsBranch.SetDescription("Model management operations");
+
+                    modelsBranch
+                        .AddCommand<DialModelsListCommand>("list")
+                        .WithDescription("List all available DIAL models");
+                    modelsBranch
+                        .AddCommand<DialModelsSetDefaultCommand>("set-default")
+                        .WithDescription("Set the default model for AI operations (interactive selection)")
+                        .WithExample("dial", "models", "set-default");
+                }
+            );
+
             branch
                 .AddCommand<DialLimitsCommand>("limits")
                 .WithDescription("Get token limits for a specific model")

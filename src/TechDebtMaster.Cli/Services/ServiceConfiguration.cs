@@ -41,7 +41,6 @@ public static class ServiceConfiguration
         services.AddScoped<CleanCommand>();
         services.AddScoped<ConfigShowCommand>();
         services.AddScoped<ConfigSetCommand>();
-        services.AddScoped<DialListModelsCommand>();
         services.AddScoped<DialLimitsCommand>();
         services.AddScoped<PromptsEditCommand>();
         services.AddScoped<PromptsRestoreTemplatesCommand>();

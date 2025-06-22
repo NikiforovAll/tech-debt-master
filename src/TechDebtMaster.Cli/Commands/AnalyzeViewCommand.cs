@@ -7,6 +7,7 @@ using Spectre.Console.Cli;
 using TechDebtMaster.Cli.Services;
 using TechDebtMaster.Cli.Services.Analysis;
 using TechDebtMaster.Cli.Services.Analysis.Handlers;
+using TextCopy;
 
 namespace TechDebtMaster.Cli.Commands;
 
@@ -193,7 +194,17 @@ public class AnalyzeViewCommand(
             else
             {
                 // Display in interactive format for single item
-                await DisplayDebtItemDetail(specificItem.DebtItem, specificItem.FilePath);
+                if (settings.InteractiveMode)
+                {
+                    await DisplayDebtItemDetailInteractive(
+                        specificItem.DebtItem,
+                        specificItem.FilePath
+                    );
+                }
+                else
+                {
+                    await DisplayDebtItemDetail(specificItem.DebtItem, specificItem.FilePath);
+                }
             }
 
             return 0;
@@ -273,18 +284,63 @@ public class AnalyzeViewCommand(
             })
             .ToList();
 
-        // Present selection prompt
-        var selectedOption = AnsiConsole.Prompt(
-            new SelectionPrompt<DebtItemOption>()
-                .Title("Select a [green]technical debt item[/] to view:")
-                .PageSize(15)
-                .MoreChoicesText("[grey](Move up and down to reveal more items)[/]")
-                .UseConverter(option => option.DisplayText)
-                .AddChoices(selectionOptions)
-        );
+        // Add exit option if in interactive mode
+        if (settings.InteractiveMode)
+        {
+            selectionOptions.Add(
+                new DebtItemOption
+                {
+                    DisplayText = "[red]Exit[/]",
+                    DebtItem = null!,
+                    FilePath = "[EXIT]",
+                }
+            );
+        }
 
-        // Load and display detailed content
-        await DisplayDebtItemDetail(selectedOption.DebtItem, selectedOption.FilePath);
+        // Interactive mode loop
+        while (true)
+        {
+            if (settings.InteractiveMode)
+            {
+                AnsiConsole.Clear();
+            }
+
+            // Present selection prompt
+            var title = settings.InteractiveMode
+                ? "Select a [green]technical debt item[/] to view (interactive mode):"
+                : "Select a [green]technical debt item[/] to view:";
+
+            var selectedOption = AnsiConsole.Prompt(
+                new SelectionPrompt<DebtItemOption>()
+                    .Title(title)
+                    .PageSize(15)
+                    .MoreChoicesText("[grey](Move up and down to reveal more items)[/]")
+                    .UseConverter(option => option.DisplayText)
+                    .AddChoices(selectionOptions)
+            );
+
+            // Check if exit was selected
+            if (settings.InteractiveMode && selectedOption.FilePath == "[EXIT]")
+            {
+                AnsiConsole.Clear();
+                AnsiConsole.MarkupLine("[green]Exiting interactive mode.[/]");
+                break;
+            }
+
+            // Load and display detailed content
+            if (settings.InteractiveMode)
+            {
+                await DisplayDebtItemDetailInteractive(
+                    selectedOption.DebtItem,
+                    selectedOption.FilePath
+                );
+            }
+            else
+            {
+                await DisplayDebtItemDetail(selectedOption.DebtItem, selectedOption.FilePath);
+                break; // Exit after single display in non-interactive mode
+            }
+        }
 
         return 0;
     }
@@ -518,30 +574,118 @@ public class AnalyzeViewCommand(
         }
     }
 
+    private async Task DisplayDebtItemDetailInteractive(TechnicalDebtItem debtItem, string filePath)
+    {
+        AnsiConsole.Clear();
+
+        // Display the debt item detail
+        await DisplayDebtItemDetail(debtItem, filePath);
+
+        // Display navigation instructions
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule());
+        AnsiConsole.MarkupLine(
+            "[dim]Press [/][yellow]'q'[/][dim] to go back to selection | [/][yellow]'c'[/][dim] to copy ID to clipboard[/]"
+        );
+
+        // Wait for user input
+        while (true)
+        {
+            var key = Console.ReadKey(true);
+            if (key.Key == ConsoleKey.Q || key.KeyChar == 'q' || key.KeyChar == 'Q')
+            {
+                break;
+            }
+            else if (key.Key == ConsoleKey.C || key.KeyChar == 'c' || key.KeyChar == 'C')
+            {
+#pragma warning disable CA1031 // Do not catch general exception types
+                try
+                {
+                    // Copy the full debt ID (filepath:id) to clipboard
+                    var fullDebtId = $"{filePath}:{debtItem.Id}";
+                    await ClipboardService.SetTextAsync(fullDebtId);
+
+                    // Show confirmation message by moving cursor up and rewriting the line
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    AnsiConsole.MarkupLine(
+                        $"[green]✓ Copied to clipboard:[/] [cyan]{fullDebtId.EscapeMarkup()}[/]"
+                    );
+
+                    // Wait a moment then restore the instruction line
+                    await Task.Delay(2000);
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    AnsiConsole.MarkupLine(
+                        "[dim]Press [/][yellow]'q'[/][dim] to go back to selection | [/][yellow]'c'[/][dim] to copy ID to clipboard[/]"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // Show error message
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    AnsiConsole.MarkupLine(
+                        $"[red]Failed to copy to clipboard:[/] {ex.Message.EscapeMarkup()}"
+                    );
+
+                    // Wait a moment then restore the instruction line
+                    await Task.Delay(2000);
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    Console.Write("\r" + new string(' ', Console.WindowWidth));
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    AnsiConsole.MarkupLine(
+                        "[dim]Press [/][yellow]'q'[/][dim] to go back to selection | [/][yellow]'c'[/][dim] to copy ID to clipboard[/]"
+                    );
+                }
+#pragma warning restore CA1031 // Do not catch general exception types
+            }
+        }
+    }
+
     private static void DisplayMarkdownContent(string markdownContent)
     {
         // Split content into lines for processing
         var lines = markdownContent.Split('\n', StringSplitOptions.None);
 
+        // Define color hierarchy for headers (H1-H6)
+        var headerColors = new[]
+        {
+            "bold blue", // H1 - Primary sections (Context, Scenario, etc.)
+            "bold green", // H2 - Major subsections
+            "bold yellow", // H3 - Minor subsections
+            "bold magenta", // H4 - Detail sections
+            "bold cyan", // H5 - Sub-details
+            "bold white", // H6 - Fine details
+        };
+
         foreach (var line in lines)
         {
             var trimmedLine = line.TrimEnd().EscapeMarkup();
 
-            // Handle headers
-            if (trimmedLine.StartsWith("###", StringComparison.Ordinal))
+            // Handle headers - count the number of hash symbols
+            if (trimmedLine.StartsWith('#'))
             {
-                var headerText = trimmedLine[3..].Trim();
-                AnsiConsole.MarkupLine($"[bold yellow]{headerText}[/]");
-            }
-            else if (trimmedLine.StartsWith("##", StringComparison.Ordinal))
-            {
-                var headerText = trimmedLine[2..].Trim();
-                AnsiConsole.MarkupLine($"[bold cyan]{headerText}[/]");
-            }
-            else if (trimmedLine.StartsWith('#'))
-            {
-                var headerText = trimmedLine[1..].Trim();
-                AnsiConsole.MarkupLine($"[bold green]{headerText}[/]");
+                var hashCount = 0;
+                for (int i = 0; i < trimmedLine.Length && trimmedLine[i] == '#'; i++)
+                {
+                    hashCount++;
+                }
+
+                // Ensure we have a valid header (1-6 levels) and there's text after the hashes
+                if (hashCount >= 1 && hashCount <= 6 && hashCount < trimmedLine.Length)
+                {
+                    var headerText = trimmedLine[hashCount..].Trim();
+                    if (!string.IsNullOrEmpty(headerText))
+                    {
+                        var colorIndex = hashCount - 1; // Convert to 0-based index
+                        var color = headerColors[colorIndex];
+                        AnsiConsole.MarkupLine($"[{color}]{headerText}[/]");
+                    }
+                }
             }
             // Handle code blocks (simple detection)
             else if (trimmedLine.StartsWith("```", StringComparison.Ordinal))
@@ -866,5 +1010,9 @@ public class AnalyzeViewCommand(
         )]
         [CommandOption("--id")]
         public string? DebtId { get; init; }
+
+        [Description("Enable interactive mode to browse through items and return to selection")]
+        [CommandOption("-i|--interactive")]
+        public bool InteractiveMode { get; init; }
     }
 }

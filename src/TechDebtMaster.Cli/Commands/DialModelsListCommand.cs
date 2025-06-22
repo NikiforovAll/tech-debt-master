@@ -4,7 +4,7 @@ using TechDebtMaster.Cli.Services;
 
 namespace TechDebtMaster.Cli.Commands;
 
-public class DialListModelsCommand(IDialService dialService) : AsyncCommand
+public class DialModelsListCommand(IDialService dialService) : AsyncCommand
 {
     private static readonly string[] s_colors =
     [
