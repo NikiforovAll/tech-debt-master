@@ -10,6 +10,16 @@ services.ConfigureServices();
 var registrar = new TypeRegistrar(services);
 var app = new CommandApp(registrar);
 
+// Configure Spectre.Console capabilities for consistent Unicode support
+// This ensures special characters (✓, ✗, ●, etc.) render correctly in packed versions
+AnsiConsole.Profile.Capabilities.Unicode = true;
+
+// Allow environment variable override for Unicode support
+if (Environment.GetEnvironmentVariable("TDM_DISABLE_UNICODE") == "true")
+{
+    AnsiConsole.Profile.Capabilities.Unicode = false;
+}
+
 var config = new ConfigurationService();
 await config.EnsureDefaultsAsync();
 

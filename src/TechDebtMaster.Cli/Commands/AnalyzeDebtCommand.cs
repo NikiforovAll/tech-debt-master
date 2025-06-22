@@ -305,7 +305,7 @@ public class AnalyzeDebtCommand(
                                                 ? $" [dim]({string.Join(", ", item.Tags)})[/]"
                                                 : "";
                                         AnsiConsole.MarkupLine(
-                                            $"    [{severityColor}] ● [/] [bold]{item.Id}[/]: {item.Summary.EscapeMarkup()}{tagsText}"
+                                            $"    [{severityColor}] • [/] [bold]{item.Id}[/]: {item.Summary.EscapeMarkup()}{tagsText}"
                                         );
                                     }
                                 }

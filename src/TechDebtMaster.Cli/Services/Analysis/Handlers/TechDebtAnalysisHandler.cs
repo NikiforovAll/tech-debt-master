@@ -181,19 +181,11 @@ public class TechDebtAnalysisHandler(
 
     private static DebtTag? ParseSingleTag(string tagText)
     {
-        return tagText
-            .ToLowerInvariant()
-            .Replace("-", "", StringComparison.OrdinalIgnoreCase) switch
+        if (Enum.TryParse<DebtTag>(tagText, ignoreCase: true, out var tag))
         {
-            "codesmell" => DebtTag.CodeSmell,
-            "naming" => DebtTag.Naming,
-            "magicnumber" => DebtTag.MagicNumber,
-            "complexity" => DebtTag.Complexity,
-            "errorhandling" => DebtTag.ErrorHandling,
-            "outdatedpattern" => DebtTag.OutdatedPattern,
-            "todo" => DebtTag.Todo,
-            "performance" => DebtTag.Performance,
-            _ => null,
-        };
+            return tag;
+        }
+
+        return null;
     }
 }

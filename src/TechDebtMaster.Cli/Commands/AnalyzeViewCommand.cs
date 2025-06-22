@@ -15,9 +15,7 @@ namespace TechDebtMaster.Cli.Commands;
 public partial class AnalyzeViewCommand(
     IAnalysisService analysisService,
     ITechDebtStorageService techDebtStorage,
-    IConfigurationService configurationService,
-    IIndexStorageService indexStorageService,
-    IHashCalculator hashCalculator
+    IConfigurationService configurationService
 ) : AsyncCommand<AnalyzeViewCommandSettings>
 {
     private static readonly JsonSerializerOptions s_jsonOptions = new()
@@ -206,8 +204,7 @@ public partial class AnalyzeViewCommand(
                 {
                     await DisplayDebtItemDetailInteractive(
                         specificItem.DebtItem,
-                        specificItem.FilePath,
-                        repositoryPath
+                        specificItem.FilePath
                     );
                 }
                 else
@@ -359,8 +356,7 @@ public partial class AnalyzeViewCommand(
             {
                 var result = await DisplayDebtItemDetailInteractive(
                     selectedOption.DebtItem,
-                    selectedOption.FilePath,
-                    repositoryPath
+                    selectedOption.FilePath
                 );
 
                 // Handle the result
@@ -396,9 +392,9 @@ public partial class AnalyzeViewCommand(
     private static List<DebtItemWithFile> ExtractDebtItems(AnalysisReport analysisReport)
     {
         var debtItems = new List<DebtItemWithFile>();
-        var jsonOptions = new System.Text.Json.JsonSerializerOptions
+        var jsonOptions = new JsonSerializerOptions
         {
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = false,
         };
 
@@ -414,12 +410,11 @@ public partial class AnalyzeViewCommand(
                 TechDebtAnalysisResult? techDebtResult = null;
                 try
                 {
-                    var json = System.Text.Json.JsonSerializer.Serialize(resultObj, jsonOptions);
-                    techDebtResult =
-                        System.Text.Json.JsonSerializer.Deserialize<TechDebtAnalysisResult>(
-                            json,
-                            jsonOptions
-                        );
+                    var json = JsonSerializer.Serialize(resultObj, jsonOptions);
+                    techDebtResult = JsonSerializer.Deserialize<TechDebtAnalysisResult>(
+                        json,
+                        jsonOptions
+                    );
                 }
                 catch
                 {
@@ -624,8 +619,7 @@ public partial class AnalyzeViewCommand(
 
     private async Task<InteractiveResult> DisplayDebtItemDetailInteractive(
         TechnicalDebtItem debtItem,
-        string filePath,
-        string repositoryPath
+        string filePath
     )
     {
         AnsiConsole.Clear();
@@ -734,9 +728,6 @@ public partial class AnalyzeViewCommand(
 #pragma warning restore CA1031 // Do not catch general exception types
             }
         }
-
-        // This should never be reached, but just in case
-        return new InteractiveResult { Action = InteractiveAction.GoBack };
     }
 
     private static void DisplayMarkdownContent(string markdownContent)
@@ -763,7 +754,7 @@ public partial class AnalyzeViewCommand(
             if (trimmedLine.StartsWith('#'))
             {
                 var hashCount = 0;
-                for (int i = 0; i < trimmedLine.Length && trimmedLine[i] == '#'; i++)
+                for (var i = 0; i < trimmedLine.Length && trimmedLine[i] == '#'; i++)
                 {
                     hashCount++;
                 }
@@ -989,7 +980,6 @@ public partial class AnalyzeViewCommand(
     )
     {
         var itemsWithContent = new List<DebtItemWithContent>();
-        var totalItems = debtItems.Count;
         var currentItem = 0;
 
         foreach (
@@ -1142,7 +1132,7 @@ public partial class AnalyzeViewCommand(
                                 ] = techDebtResult;
 
                                 // Save the updated analysis report
-                                await SaveAnalysisReportAsync(repositoryPath, analysisReport);
+                                await analysisService.SaveAnalysisReportAsync(repositoryPath, analysisReport);
                                 result.MetadataDeleted = true;
                             }
                         }
@@ -1170,35 +1160,6 @@ public partial class AnalyzeViewCommand(
         return _currentRepositoryPath;
     }
 
-    private async Task SaveAnalysisReportAsync(string repositoryPath, AnalysisReport report)
-    {
-        // We need to use reflection or create a new analysis service method to save the report
-        // For now, let's use the existing pattern from AnalysisService
-        var repoHash = GetRepositoryHash(repositoryPath);
-        var analysisPath = GetAnalysisPath(repositoryPath, repoHash);
-
-        var jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        };
-
-        var json = JsonSerializer.Serialize(report, jsonOptions);
-        await File.WriteAllTextAsync(analysisPath, json);
-    }
-
-    private string GetRepositoryHash(string repositoryPath)
-    {
-        var normalizedPath = Path.GetFullPath(repositoryPath).ToLowerInvariant();
-        var hash = hashCalculator.CalculateHash(normalizedPath);
-        return hash.Substring(0, 8);
-    }
-
-    private string GetAnalysisPath(string repositoryPath, string repoHash)
-    {
-        var indexDir = indexStorageService.GetIndexDirectory(repositoryPath);
-        return Path.Combine(indexDir, $"analysis_{repoHash}.json");
-    }
 
     private sealed class InteractiveResult
     {

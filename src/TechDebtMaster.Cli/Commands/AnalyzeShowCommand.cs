@@ -153,6 +153,7 @@ public class AnalyzeShowCommand(
             )
             {
                 TechDebtAnalysisResult? techDebtResult = null;
+#pragma warning disable CA1031 // Do not catch general exception types
                 try
                 {
                     var json = System.Text.Json.JsonSerializer.Serialize(resultObj, jsonOptions);
@@ -166,6 +167,7 @@ public class AnalyzeShowCommand(
                 {
                     // Ignore deserialization errors
                 }
+#pragma warning restore CA1031 // Do not catch general exception types
 
                 if (techDebtResult?.Items?.Count > 0)
                 {
@@ -374,15 +376,15 @@ public class AnalyzeShowCommand(
         }
 
         // Build directory hierarchy
-        foreach (var dir in directories.Values)
+        foreach (var dir in directories.Values.Select(d => d.Path))
         {
-            var parentPath = GetParentPath(dir.Path);
+            var parentPath = GetParentPath(dir);
             if (
                 !string.IsNullOrEmpty(parentPath)
                 && directories.TryGetValue(parentPath, out var parent)
             )
             {
-                parent.Subdirectories.Add(dir.Path);
+                parent.Subdirectories.Add(dir);
             }
         }
 
@@ -434,7 +436,7 @@ public class AnalyzeShowCommand(
                     foreach (var item in tagItems.OrderByDescending(i => i.Severity))
                     {
                         var severityColor = GetSeverityColor(item.Severity);
-                        tagNode.AddNode($"[{severityColor}]●[/] {item.Id}: {item.Summary}");
+                        tagNode.AddNode($"[{severityColor}]•[/] {item.Id}: {item.Summary}");
                     }
                 }
             }
@@ -585,7 +587,7 @@ public class AnalyzeShowCommand(
         }
 
         var lastSlash = path.LastIndexOf('/');
-        return lastSlash > 0 ? path.Substring(0, lastSlash) : "";
+        return lastSlash > 0 ? path[..lastSlash] : "";
     }
 
     private static string GetSeverityColor(DebtSeverity severity)

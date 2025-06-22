@@ -1,7 +1,6 @@
 using System.Text.Json;
-using TechDebtMaster.Cli.Services.Analysis;
 
-namespace TechDebtMaster.Cli.Services;
+namespace TechDebtMaster.Cli.Services.Analysis;
 
 public interface IAnalysisService
 {
@@ -10,6 +9,7 @@ public interface IAnalysisService
         string repositoryPath
     );
     Task<AnalysisReport?> LoadAnalysisReportAsync(string repositoryPath);
+    Task SaveAnalysisReportAsync(string repositoryPath, AnalysisReport report);
 }
 
 public class AnalysisService(
@@ -86,7 +86,7 @@ public class AnalysisService(
             };
         }
 
-        await SaveAnalysisAsync(repositoryPath, report);
+        await SaveAnalysisReportAsync(repositoryPath, report);
         return report;
     }
 
@@ -109,7 +109,7 @@ public class AnalysisService(
         return JsonSerializer.Deserialize<AnalysisReport>(json, _jsonOptions);
     }
 
-    private async Task SaveAnalysisAsync(string repositoryPath, AnalysisReport report)
+    public async Task SaveAnalysisReportAsync(string repositoryPath, AnalysisReport report)
     {
         var repoHash = GetRepositoryHash(repositoryPath);
         var analysisPath = GetAnalysisPath(repositoryPath, repoHash);
