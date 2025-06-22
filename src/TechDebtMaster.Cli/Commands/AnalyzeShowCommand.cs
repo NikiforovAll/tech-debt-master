@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.RegularExpressions;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Spectre.Console.Rendering;
 using TechDebtMaster.Cli.Services;
 using TechDebtMaster.Cli.Services.Analysis;
 using TechDebtMaster.Cli.Services.Analysis.Handlers;
@@ -107,8 +108,8 @@ public class AnalyzeShowCommand(
             return 0;
         }
 
-        // Display filtering information
-        DisplayFilteringInfo(
+        // Create panel components
+        var filesAnalyzedPanel = CreateFilesAnalyzedPanel(
             fileDebtMap,
             filteredFileDebtMap,
             settings,
@@ -116,12 +117,17 @@ public class AnalyzeShowCommand(
             excludePattern
         );
 
-        // Build and display tree
-        var tree = BuildDebtTree(filteredFileDebtMap);
-        AnsiConsole.Write(tree);
+        var summaryStatisticsPanel = CreateSummaryStatisticsPanel(filteredFileDebtMap);
+        var technicalDebtAnalysisPanel = CreateTechnicalDebtAnalysisPanel(filteredFileDebtMap);
 
-        // Display summary statistics
-        DisplaySummaryStatistics(filteredFileDebtMap);
+        // Create top row with two columns side by side
+        var topRow = new Columns(filesAnalyzedPanel, summaryStatisticsPanel);
+
+        // Create complete layout using Rows to stack naturally without blank space
+        var layout = new Rows(topRow, technicalDebtAnalysisPanel);
+
+        // Display the complete layout
+        AnsiConsole.Write(layout);
 
         return 0;
     }
@@ -233,7 +239,7 @@ public class AnalyzeShowCommand(
         return filteredMap;
     }
 
-    private static void DisplayFilteringInfo(
+    private static Panel CreateFilesAnalyzedPanel(
         Dictionary<string, List<TechnicalDebtItem>> original,
         Dictionary<string, List<TechnicalDebtItem>> filtered,
         AnalyzeShowSettings settings,
@@ -244,42 +250,42 @@ public class AnalyzeShowCommand(
         var totalOriginalItems = original.Values.Sum(list => list.Count);
         var totalFilteredItems = filtered.Values.Sum(list => list.Count);
 
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"[blue]Files analyzed:[/] {original.Count}");
-        AnsiConsole.MarkupLine($"[blue]Files displayed:[/] {filtered.Count}");
-        AnsiConsole.MarkupLine($"[blue]Total debt items:[/] {totalOriginalItems}");
+        var content = new List<string>
+        {
+            $"[blue]Files analyzed:[/] {original.Count}",
+            $"[blue]Files displayed:[/] {filtered.Count}",
+            $"[blue]Total debt items:[/] {totalOriginalItems}",
+        };
 
         if (totalFilteredItems != totalOriginalItems)
         {
-            AnsiConsole.MarkupLine($"[blue]Filtered debt items:[/] {totalFilteredItems}");
+            content.Add($"[blue]Filtered debt items:[/] {totalFilteredItems}");
         }
 
         if (!string.IsNullOrWhiteSpace(includePattern))
         {
             var source = settings.IncludePattern == includePattern ? "" : " (from default.include)";
-            AnsiConsole.MarkupLine(
-                $"[yellow]Include pattern{source}:[/] [cyan]{includePattern}[/]"
-            );
+            content.Add($"[yellow]Include pattern{source}:[/] [cyan]{includePattern}[/]");
         }
         if (!string.IsNullOrWhiteSpace(excludePattern))
         {
             var source = settings.ExcludePattern == excludePattern ? "" : " (from default.exclude)";
-            AnsiConsole.MarkupLine(
-                $"[yellow]Exclude pattern{source}:[/] [cyan]{excludePattern}[/]"
-            );
+            content.Add($"[yellow]Exclude pattern{source}:[/] [cyan]{excludePattern}[/]");
         }
         if (settings.SeverityFilter.HasValue)
         {
-            AnsiConsole.MarkupLine(
-                $"[yellow]Severity filter:[/] [cyan]{settings.SeverityFilter.Value}[/]"
-            );
+            content.Add($"[yellow]Severity filter:[/] [cyan]{settings.SeverityFilter.Value}[/]");
         }
         if (settings.TagFilter.HasValue)
         {
-            AnsiConsole.MarkupLine($"[yellow]Tag filter:[/] [cyan]{settings.TagFilter.Value}[/]");
+            content.Add($"[yellow]Tag filter:[/] [cyan]{settings.TagFilter.Value}[/]");
         }
 
-        AnsiConsole.WriteLine();
+        return new Panel(string.Join("\n", content))
+            .Header("[bold]Files Analyzed[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Blue)
+            .Expand();
     }
 
     private static Tree BuildDebtTree(Dictionary<string, List<TechnicalDebtItem>> fileDebtMap)
@@ -481,7 +487,7 @@ public class AnalyzeShowCommand(
         return stats;
     }
 
-    private static void DisplaySummaryStatistics(
+    private static Panel CreateSummaryStatisticsPanel(
         Dictionary<string, List<TechnicalDebtItem>> fileDebtMap
     )
     {
@@ -489,18 +495,20 @@ public class AnalyzeShowCommand(
 
         if (allItems.Count == 0)
         {
-            return;
+            return new Panel("[dim]No debt items found[/]")
+                .Header("[bold]Summary Statistics[/]")
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Green)
+                .Expand();
         }
 
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[bold]Summary Statistics[/]");
-        AnsiConsole.WriteLine();
+        var renderables = new List<IRenderable>();
 
         // Severity distribution bar chart
         var severityGroups = allItems.GroupBy(item => item.Severity).OrderByDescending(g => g.Key);
 
         var severityChart = new BarChart()
-            .Width(60)
+            .Width(50)
             .Label("[bold]Severity Distribution[/]")
             .CenterLabel();
 
@@ -510,8 +518,7 @@ public class AnalyzeShowCommand(
             severityChart.AddItem(group.Key.ToString(), group.Count(), color);
         }
 
-        AnsiConsole.Write(severityChart);
-        AnsiConsole.WriteLine();
+        renderables.Add(severityChart);
 
         // Tag distribution bar chart
         var tagGroups = allItems
@@ -523,8 +530,10 @@ public class AnalyzeShowCommand(
 
         if (tagGroups.Count > 0)
         {
+            renderables.Add(new Text("")); // Spacing
+
             var tagChart = new BarChart()
-                .Width(60)
+                .Width(50)
                 .Label("[bold]Tag Distribution (Top 10)[/]")
                 .CenterLabel();
 
@@ -550,8 +559,27 @@ public class AnalyzeShowCommand(
                 tagChart.AddItem(group.Key.ToString(), group.Count(), color);
             }
 
-            AnsiConsole.Write(tagChart);
+            renderables.Add(tagChart);
         }
+
+        var rows = new Rows(renderables);
+        return new Panel(rows)
+            .Header("[bold]Summary Statistics[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Green)
+            .Expand();
+    }
+
+    private static Panel CreateTechnicalDebtAnalysisPanel(
+        Dictionary<string, List<TechnicalDebtItem>> fileDebtMap
+    )
+    {
+        var tree = BuildDebtTree(fileDebtMap);
+        return new Panel(tree)
+            .Header("[bold]Technical Debt Analysis[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Cyan1)
+            .Expand();
     }
 
     private static string GetParentPath(string path)
