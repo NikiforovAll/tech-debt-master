@@ -91,6 +91,14 @@ app.Configure(config =>
                 .WithExample("debt", "view", "/home/user/my-repo")
                 .WithExample("debt", "view", "/home/user/my-repo", "--severity", "Critical")
                 .WithExample("debt", "view", "/home/user/my-repo", "--tag", "Performance");
+
+            branch
+                .AddCommand<DebtReportCommand>("report")
+                .WithDescription("Generate an interactive HTML report of technical debt")
+                .WithExample("debt", "report")
+                .WithExample("debt", "report", "--output", "my-report.html")
+                .WithExample("debt", "report", "/home/user/my-repo", "--output", "report.html", "--open")
+                .WithExample("debt", "report", "--include", "\\.cs$", "--output", "csharp-debt.html");
         }
     );
 
