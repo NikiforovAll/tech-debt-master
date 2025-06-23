@@ -89,6 +89,13 @@ app.Configure(config =>
                 .WithExample("debt", "report", "--output", "my-report.html")
                 .WithExample("debt", "report", "/home/user/my-repo", "--output", "report.html", "--open")
                 .WithExample("debt", "report", "--include", "\\.cs$", "--output", "csharp-debt.html");
+
+            branch
+                .AddCommand<DebtImportCommand>("import")
+                .WithDescription("Import modified HTML report to update analysis data")
+                .WithExample("debt", "import", "modified-report.html")
+                .WithExample("debt", "import", "modified-report.html", "--apply")
+                .WithExample("debt", "import", "modified-report.html", "--repo", "/path/to/repo", "--verbose");
         }
     );
 

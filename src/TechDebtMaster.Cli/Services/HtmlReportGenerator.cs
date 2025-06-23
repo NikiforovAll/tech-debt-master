@@ -26,9 +26,21 @@ public class HtmlReportGenerator : IHtmlReportGenerator
             .OrderByDescending(g => g.Count())
             .ToDictionary(g => g.Key.ToString(), g => g.Count());
 
-        // Prepare data for JavaScript
+        // Prepare clean data for JavaScript (exclude markdown content to avoid JSON parsing issues)
+        var cleanDebtData = fileDebtMap.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Select(item => new {
+                id = item.Id,
+                summary = item.Summary,
+                severity = item.Severity,
+                tags = item.Tags,
+                reference = item.Reference
+                // markdownContent intentionally excluded
+            }).ToList()
+        );
+
         var debtData = JsonSerializer.Serialize(
-            fileDebtMap,
+            cleanDebtData,
             new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -51,6 +63,9 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         html.AppendLine("    <style>");
         html.AppendLine(GetStyles());
         html.AppendLine("    </style>");
+        html.AppendLine("    <script type=\"application/json\" id=\"debt-state\">");
+        html.AppendLine("        {\"hiddenItems\": {}, \"doneItems\": {}}");
+        html.AppendLine("    </script>");
         html.AppendLine("</head>");
         html.AppendLine("<body>");
         html.AppendLine("    <div class=\"container\">");
@@ -717,9 +732,24 @@ public class HtmlReportGenerator : IHtmlReportGenerator
     private static string GetJavaScript()
     {
         return @"
-        // State management
-        let hiddenItems = JSON.parse(localStorage.getItem('hiddenDebtItems') || '{}');
-        let doneItems = JSON.parse(localStorage.getItem('doneDebtItems') || '{}');
+        // State management - load from embedded JSON block
+        function loadState() {
+            const stateElement = document.getElementById('debt-state');
+            try {
+                return JSON.parse(stateElement.textContent);
+            } catch {
+                return {hiddenItems: {}, doneItems: {}};
+            }
+        }
+        
+        function saveState(state) {
+            const stateElement = document.getElementById('debt-state');
+            stateElement.textContent = JSON.stringify(state);
+        }
+        
+        let currentState = loadState();
+        let hiddenItems = currentState.hiddenItems || {};
+        let doneItems = currentState.doneItems || {};
         let currentFilters = {
             search: '',
             severity: '',
@@ -779,6 +809,7 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         function renderCharts() {
             // Severity chart
             const severityChart = document.getElementById('severity-chart');
+            severityChart.innerHTML = ''; // Clear existing chart items
             const severityOrder = ['Critical', 'High', 'Medium', 'Low'];
             const maxSeverityValue = Math.max(...Object.values(severityStats));
             
@@ -793,6 +824,7 @@ public class HtmlReportGenerator : IHtmlReportGenerator
 
             // Tag chart
             const tagChart = document.getElementById('tag-chart');
+            tagChart.innerHTML = ''; // Clear existing chart items
             const maxTagValue = Math.max(...Object.values(tagStats));
             
             Object.entries(tagStats).forEach(([tag, count]) => {
@@ -1027,7 +1059,7 @@ public class HtmlReportGenerator : IHtmlReportGenerator
                 doneItems[itemId] = true;
             }
             
-            localStorage.setItem('doneDebtItems', JSON.stringify(doneItems));
+            saveState({hiddenItems, doneItems});
             renderDebtItems();
             updateDoneCount();
         }
@@ -1040,7 +1072,7 @@ public class HtmlReportGenerator : IHtmlReportGenerator
                 hiddenItems[itemId] = true;
             }
             
-            localStorage.setItem('hiddenDebtItems', JSON.stringify(hiddenItems));
+            saveState({hiddenItems, doneItems});
             renderDebtItems();
             updateHiddenCount();
         }
