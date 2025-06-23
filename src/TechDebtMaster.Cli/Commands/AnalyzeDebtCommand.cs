@@ -299,13 +299,12 @@ public class AnalyzeDebtCommand(
                                     );
                                     foreach (var item in techDebtResult.Items)
                                     {
-                                        var severityColor = GetSeverityColor(item.Severity);
                                         var tagsText =
                                             item.Tags.Length > 0
                                                 ? $" [dim]({string.Join(", ", item.Tags)})[/]"
                                                 : "";
                                         AnsiConsole.MarkupLine(
-                                            $"    [{severityColor}] • [/] [bold]{item.Id}[/]: {item.Summary.EscapeMarkup()}{tagsText}"
+                                            $"    {ConsoleFormattingUtility.FormatSeverityWithColor(item.Severity)} [bold]{item.Id}[/]: {item.Summary.EscapeMarkup()}{tagsText}"
                                         );
                                     }
                                 }
@@ -346,17 +345,6 @@ public class AnalyzeDebtCommand(
         return 0;
     }
 
-    private static string GetSeverityColor(DebtSeverity severity)
-    {
-        return severity switch
-        {
-            DebtSeverity.Critical => "red",
-            DebtSeverity.High => "orange3",
-            DebtSeverity.Medium => "yellow",
-            DebtSeverity.Low => "green",
-            _ => "gray",
-        };
-    }
 }
 
 public class AnalyzeDebtSettings : CommandSettings

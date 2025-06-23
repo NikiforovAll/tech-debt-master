@@ -534,12 +534,11 @@ public partial class AnalyzeViewCommand(
 
     private static string FormatDebtItemForSelection(DebtItemWithFile item)
     {
-        var severityColor = GetSeverityColor(item.DebtItem.Severity);
         var fileName = Path.GetFileName(item.FilePath);
         var tagsText =
             item.DebtItem.Tags.Length > 0 ? $" ({string.Join(", ", item.DebtItem.Tags)})" : "";
 
-        return $"[{severityColor}]{item.DebtItem.Severity}[/] [{severityColor}]●[/] [bold]{item.DebtItem.Id}[/]: {item.DebtItem.Summary} [dim]in {fileName}[/]{tagsText}";
+        return $"{ConsoleFormattingUtility.FormatSeverityWithColor(item.DebtItem.Severity)} [bold]{item.DebtItem.Id}[/]: {item.DebtItem.Summary} [dim]in {fileName}[/]{tagsText}";
     }
 
     private async Task DisplayDebtItemDetail(TechnicalDebtItem debtItem, string filePath)
@@ -551,7 +550,7 @@ public partial class AnalyzeViewCommand(
         AnsiConsole.WriteLine();
 
         // Display item summary information
-        var severityColor = GetSeverityColor(debtItem.Severity);
+        var severityColor = ConsoleFormattingUtility.GetSeverityColor(debtItem.Severity);
 
         var table = new Table()
             .AddColumn("[bold]Property[/]")
@@ -783,7 +782,7 @@ public partial class AnalyzeViewCommand(
             )
             {
                 var bulletText = trimmedLine[2..];
-                AnsiConsole.MarkupLine($"  [cyan]•[/] {bulletText}");
+                AnsiConsole.MarkupLine($"  [cyan]ITEM[/] {bulletText}");
             }
             // Handle numbered lists
             else if (Regex.IsMatch(trimmedLine, @"^\d+\.\s"))
@@ -866,17 +865,6 @@ public partial class AnalyzeViewCommand(
         return filenameMatch;
     }
 
-    private static string GetSeverityColor(DebtSeverity severity)
-    {
-        return severity switch
-        {
-            DebtSeverity.Critical => "red",
-            DebtSeverity.High => "orange3",
-            DebtSeverity.Medium => "yellow",
-            DebtSeverity.Low => "green",
-            _ => "gray",
-        };
-    }
 
     private static void OutputPlainFormat(List<DebtItemWithContent> items)
     {
