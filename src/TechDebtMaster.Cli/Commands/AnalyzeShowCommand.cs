@@ -435,8 +435,7 @@ public class AnalyzeShowCommand(
                     // Add individual debt items
                     foreach (var item in tagItems.OrderByDescending(i => i.Severity))
                     {
-                        var severityColor = GetSeverityColor(item.Severity);
-                        tagNode.AddNode($"[{severityColor}]•[/] {item.Id}: {item.Summary}");
+                        tagNode.AddNode($"{ConsoleFormattingUtility.FormatSeverityWithColor(item.Severity)} {item.Id}: {item.Summary}");
                     }
                 }
             }
@@ -516,7 +515,7 @@ public class AnalyzeShowCommand(
 
         foreach (var group in severityGroups)
         {
-            var color = GetSeverityColorEnum(group.Key);
+            var color = ConsoleFormattingUtility.GetSeverityColorEnum(group.Key);
             severityChart.AddItem(group.Key.ToString(), group.Count(), color);
         }
 
@@ -590,29 +589,6 @@ public class AnalyzeShowCommand(
         return lastSlash > 0 ? path[..lastSlash] : "";
     }
 
-    private static string GetSeverityColor(DebtSeverity severity)
-    {
-        return severity switch
-        {
-            DebtSeverity.Critical => "red",
-            DebtSeverity.High => "orange3",
-            DebtSeverity.Medium => "yellow",
-            DebtSeverity.Low => "green",
-            _ => "gray",
-        };
-    }
-
-    private static Color GetSeverityColorEnum(DebtSeverity severity)
-    {
-        return severity switch
-        {
-            DebtSeverity.Critical => Color.Red,
-            DebtSeverity.High => Color.Orange3,
-            DebtSeverity.Medium => Color.Yellow,
-            DebtSeverity.Low => Color.Green,
-            _ => Color.Grey,
-        };
-    }
 
     private sealed class DirectoryNode
     {
