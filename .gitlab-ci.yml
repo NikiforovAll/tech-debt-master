@@ -1,0 +1,28 @@
+image: mcr.microsoft.com/dotnet/sdk:9.0
+
+stages:
+  - build
+  - test
+  - pack
+
+before_script:
+  - dotnet tool restore
+
+build:
+  stage: build
+  script:
+    - dotnet cake --target build
+
+test:
+  stage: test
+  script:
+    - dotnet cake --target test
+
+pack:
+  stage: pack
+  script:
+    - dotnet cake --target pack
+  artifacts:
+    paths:
+      - Artefacts/
+    expire_in: 1h

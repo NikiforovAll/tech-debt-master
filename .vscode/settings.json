@@ -1,0 +1,34 @@
+{
+  "cSpell.words": [],
+  "[csharp]": {
+    "editor.defaultFormatter": "csharpier.csharpier-vscode"
+  },
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "text": "Do not add redundant comments",
+    }
+  ],
+  "github.copilot.chat.testGeneration.instructions": [
+    {
+      "text": "Use XUnit for testing, prefer theory tests for data driven tests",
+      "language": "csharp"
+    },
+    {
+      "text": "Use FluentAssertions for assertions",
+      "language": "csharp"
+    },
+    {
+      "text": "Use NSubstitute for mocking",
+      "language": "csharp"
+    }
+  ],
+  "github.copilot.chat.reviewSelection.instructions": [
+    {
+      "text": "Simplify the code by removing unnecessary code"
+    },
+    {
+      "text": "Prefer C# pattern matching",
+      "language": "csharp"
+    }
+  ]
+}
