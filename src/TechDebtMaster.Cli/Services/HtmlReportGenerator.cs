@@ -4,8 +4,16 @@ using TechDebtMaster.Cli.Commands;
 
 namespace TechDebtMaster.Cli.Services;
 
+#pragma warning disable CA1305 // Specify IFormatProvider
+
 public class HtmlReportGenerator : IHtmlReportGenerator
 {
+    private static readonly JsonSerializerOptions s_camelCaseOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false,
+    };
+
     public string GenerateReport(
         Dictionary<string, List<TechnicalDebtItemWithContent>> fileDebtMap,
         string repositoryName,
@@ -29,24 +37,20 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         // Prepare clean data for JavaScript (exclude markdown content to avoid JSON parsing issues)
         var cleanDebtData = fileDebtMap.ToDictionary(
             kvp => kvp.Key,
-            kvp => kvp.Value.Select(item => new {
-                id = item.Id,
-                summary = item.Summary,
-                severity = item.Severity,
-                tags = item.Tags,
-                reference = item.Reference
-                // markdownContent intentionally excluded
-            }).ToList()
+            kvp =>
+                kvp.Value.Select(item => new
+                    {
+                        id = item.Id,
+                        summary = item.Summary,
+                        severity = item.Severity,
+                        tags = item.Tags,
+                        reference = item.Reference,
+                        // markdownContent intentionally excluded
+                    })
+                    .ToList()
         );
 
-        var debtData = JsonSerializer.Serialize(
-            cleanDebtData,
-            new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false,
-            }
-        );
+        var debtData = JsonSerializer.Serialize(cleanDebtData, s_camelCaseOptions);
 
         var html = new StringBuilder();
         html.AppendLine("<!DOCTYPE html>");
@@ -112,6 +116,12 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         );
         html.AppendLine("            </div>");
         html.AppendLine("            <div class=\"filter-group\">");
+        html.AppendLine("                <label>Filename:</label>");
+        html.AppendLine(
+            "                <input type=\"text\" id=\"filename-input\" placeholder=\"Filter by filename...\">"
+        );
+        html.AppendLine("            </div>");
+        html.AppendLine("            <div class=\"filter-group\">");
         html.AppendLine("                <label>Severity:</label>");
         html.AppendLine("                <select id=\"severity-filter\">");
         html.AppendLine("                    <option value=\"\">All Severities</option>");
@@ -160,6 +170,23 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         html.AppendLine("        </div>");
         html.AppendLine("    </div>");
         html.AppendLine();
+
+        // Hidden storage for markdown content
+        html.AppendLine("    <div id=\"markdown-storage\" style=\"display:none\">");
+        foreach (var (filePath, items) in fileDebtMap)
+        {
+            foreach (var item in items)
+            {
+                var itemId = $"{filePath}-{item.Id}";
+                var escapedContent = System.Web.HttpUtility.HtmlEncode(item.MarkdownContent);
+                html.AppendLine(
+                    $"        <div data-item-id=\"{System.Web.HttpUtility.HtmlAttributeEncode(itemId)}\">{escapedContent}</div>"
+                );
+            }
+        }
+        html.AppendLine("    </div>");
+        html.AppendLine();
+
         html.AppendLine("    <script>");
         html.AppendLine($"        const debtData = {debtData};");
         html.AppendLine(
@@ -198,7 +225,7 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -400,15 +427,36 @@ public class HtmlReportGenerator : IHtmlReportGenerator
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
 
         .file-header:hover {
             background: #e5e7eb;
         }
+        
+        .file-header::before {
+            content: '\25BC';
+            position: absolute;
+            left: 8px;
+            font-size: 12px;
+        }
+        
+        .file-group.collapsed .file-header::before {
+            transform: rotate(-90deg);
+        }
 
         .file-path {
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 14px;
+            margin-left: 20px;
+        }
+        
+        .items-container {
+            overflow: hidden;
+        }
+        
+        .file-group.collapsed .items-container {
+            display: none;
         }
 
         .file-count {
@@ -752,6 +800,7 @@ public class HtmlReportGenerator : IHtmlReportGenerator
         let doneItems = currentState.doneItems || {};
         let currentFilters = {
             search: '',
+            filename: '',
             severity: '',
             tag: ''
         };
@@ -774,6 +823,11 @@ public class HtmlReportGenerator : IHtmlReportGenerator
                 renderDebtItems();
             });
 
+            document.getElementById('filename-input').addEventListener('input', (e) => {
+                currentFilters.filename = e.target.value.toLowerCase();
+                renderDebtItems();
+            });
+
             document.getElementById('severity-filter').addEventListener('change', (e) => {
                 currentFilters.severity = e.target.value;
                 renderDebtItems();
@@ -785,8 +839,9 @@ public class HtmlReportGenerator : IHtmlReportGenerator
             });
 
             document.getElementById('reset-filters').addEventListener('click', () => {
-                currentFilters = { search: '', severity: '', tag: '' };
+                currentFilters = { search: '', filename: '', severity: '', tag: '' };
                 document.getElementById('search-input').value = '';
+                document.getElementById('filename-input').value = '';
                 document.getElementById('severity-filter').value = '';
                 document.getElementById('tag-filter').value = '';
                 renderDebtItems();
@@ -898,6 +953,13 @@ public class HtmlReportGenerator : IHtmlReportGenerator
                         }
                     }
                     
+                    if (currentFilters.filename) {
+                        const filenameTerm = currentFilters.filename;
+                        if (!filePath.toLowerCase().includes(filenameTerm)) {
+                            return false;
+                        }
+                    }
+                    
                     if (currentFilters.severity && item.severity !== currentFilters.severity) {
                         return false;
                     }
@@ -931,6 +993,12 @@ public class HtmlReportGenerator : IHtmlReportGenerator
                 
                 fileHeader.appendChild(filePathElement);
                 fileHeader.appendChild(fileCount);
+                
+                // Add click handler to toggle collapse
+                fileHeader.addEventListener('click', () => {
+                    fileGroup.classList.toggle('collapsed');
+                });
+                
                 fileGroup.appendChild(fileHeader);
                 
                 // Debt items
@@ -1027,14 +1095,22 @@ public class HtmlReportGenerator : IHtmlReportGenerator
             debtItem.appendChild(debtHeader);
             
             // Add markdown content container
-            if (item.markdownContent) {
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'debt-content';
-                const markdownDiv = document.createElement('div');
-                markdownDiv.className = 'markdown-content';
-                markdownDiv.innerHTML = marked.parse(item.markdownContent);
-                contentDiv.appendChild(markdownDiv);
-                debtItem.appendChild(contentDiv);
+            const markdownStorage = document.getElementById('markdown-storage');
+            const markdownElement = markdownStorage.querySelector(`[data-item-id=""${itemId}""]`);
+            if (markdownElement) {
+                const markdownContent = markdownElement.textContent;
+                if (markdownContent) {
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'debt-content';
+                    const markdownDiv = document.createElement('div');
+                    markdownDiv.className = 'markdown-content';
+                    // Decode HTML entities and parse markdown
+                    const textarea = document.createElement('textarea');
+                    textarea.innerHTML = markdownContent;
+                    markdownDiv.innerHTML = marked.parse(textarea.value);
+                    contentDiv.appendChild(markdownDiv);
+                    debtItem.appendChild(contentDiv);
+                }
             }
             
             return debtItem;

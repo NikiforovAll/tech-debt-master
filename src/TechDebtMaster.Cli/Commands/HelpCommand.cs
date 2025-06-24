@@ -64,8 +64,16 @@ public class HelpCommand : Command<HelpCommand.Settings>
             new Text("Show technical debt statistics in a tree structure grouped by tags")
         );
         table.AddRow(
-            new Markup("  [dim]└─[/] [green]view[/] [[path]]"),
+            new Markup("  [dim]├─[/] [green]view[/] [[path]]"),
             new Text("View detailed content of specific technical debt items")
+        );
+        table.AddRow(
+            new Markup("  [dim]├─[/] [green]report[/] [[path]]"),
+            new Text("Generate an interactive HTML report of technical debt")
+        );
+        table.AddRow(
+            new Markup("  [dim]└─[/] [green]import[/] [[report-file]]"),
+            new Text("Import modified HTML report to update analysis data")
         );
         table.AddRow(new Markup(""), new Text(""));
 
@@ -142,6 +150,17 @@ public class HelpCommand : Command<HelpCommand.Settings>
         AnsiConsole.MarkupLine("  [blue]tdm debt view --id \"UserController.cs:TD001\" --json[/]");
         AnsiConsole.WriteLine();
 
+        AnsiConsole.MarkupLine("[bold yellow]5. HTML Report Generation & Management[/]");
+        AnsiConsole.MarkupLine("  [dim]# Generate HTML report[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt report[/]");
+        AnsiConsole.MarkupLine("  [dim]# Generate and open report in browser[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt report --output my-report.html --open[/]");
+        AnsiConsole.MarkupLine("  [dim]# Import modified report (preview changes)[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt import modified-report.html[/]");
+        AnsiConsole.MarkupLine("  [dim]# Apply changes from modified report[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt import modified-report.html --apply[/]");
+        AnsiConsole.WriteLine();
+
         AnsiConsole.MarkupLine("[bold green]Advanced Examples:[/]");
         AnsiConsole.MarkupLine("  [dim]# Filter by file type during indexing[/]");
         AnsiConsole.MarkupLine("  [blue]tdm repo index --include \"\\.cs$\"[/]");
@@ -149,6 +168,12 @@ public class HelpCommand : Command<HelpCommand.Settings>
         AnsiConsole.MarkupLine("  [blue]tdm debt show --severity Critical[/]");
         AnsiConsole.MarkupLine("  [dim]# Export all debt items as XML[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt view --xml[/]");
+        AnsiConsole.MarkupLine("  [dim]# Generate report for specific file types only[/]");
+        AnsiConsole.MarkupLine(
+            "  [blue]tdm debt report --include \"\\.cs$\" --output csharp-debt.html[/]"
+        );
+        AnsiConsole.MarkupLine("  [dim]# Import report with verbose output[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt import report.html --verbose[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("Run '[blue]tdm --help[/]' for command syntax help.");
