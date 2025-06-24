@@ -39,6 +39,7 @@ public static class ServiceConfiguration
         services.AddScoped<AnalyzeStatusCommand>();
         services.AddScoped<AnalyzeDebtCommand>();
         services.AddScoped<DebtReportCommand>();
+        services.AddScoped<DebtImportCommand>();
         services.AddScoped<CleanCommand>();
         services.AddScoped<ConfigShowCommand>();
         services.AddScoped<ConfigSetCommand>();
@@ -59,6 +60,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ITemplateService, TemplateService>();
         services.AddScoped<IEditorService, EditorService>();
         services.AddScoped<IHtmlReportGenerator, HtmlReportGenerator>();
+        services.AddScoped<IReportStateExtractor, ReportStateExtractor>();
 
         // Register analysis handlers
         services.AddScoped<IAnalysisHandler, PreviewHandler>();

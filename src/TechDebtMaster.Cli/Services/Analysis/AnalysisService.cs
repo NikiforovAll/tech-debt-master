@@ -10,6 +10,7 @@ public interface IAnalysisService
     );
     Task<AnalysisReport?> LoadAnalysisReportAsync(string repositoryPath);
     Task SaveAnalysisReportAsync(string repositoryPath, AnalysisReport report);
+    Task ImportAnalysisReportAsync(string repositoryPath, AnalysisReport report);
 }
 
 public class AnalysisService(
@@ -119,6 +120,11 @@ public class AnalysisService(
 
         var json = JsonSerializer.Serialize(report, _jsonOptions);
         await File.WriteAllTextAsync(analysisPath, json);
+    }
+
+    public async Task ImportAnalysisReportAsync(string repositoryPath, AnalysisReport report)
+    {
+        await SaveAnalysisReportAsync(repositoryPath, report);
     }
 
     private string GetAnalysisPath(string repositoryPath, string repoHash)

@@ -36,7 +36,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         table.AddRow(new Markup("[green]repo[/]"), new Text("Repository management and indexing"));
         table.AddRow(
             new Markup("[green]debt[/]"),
-            new Text("Technical debt analysis and reporting")
+            new Text("Technical debt analysis, reporting, and HTML export")
         );
         table.AddRow(new Markup("[green]config[/]"), new Text("Configuration management"));
         table.AddRow(new Markup("[green]prompts[/]"), new Text("Prompt template management"));
@@ -52,6 +52,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         AnsiConsole.MarkupLine("  [blue]tdm repo index[/]     [dim]# Index your repository[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt analyze[/]   [dim]# Analyze technical debt[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt show[/]      [dim]# View results[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm debt report[/]    [dim]# Generate HTML report[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine(
