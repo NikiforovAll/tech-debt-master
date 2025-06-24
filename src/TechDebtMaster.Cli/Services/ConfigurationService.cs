@@ -11,6 +11,7 @@ public class ConfigurationService : IConfigurationService
     {
         ["ai.url"] = "https://ai-proxy.lab.epam.com",
         ["ai.model"] = "gpt-4o",
+        ["ai.provider"] = "dial",
         ["prompt.default"] = "techdebt-analysis",
         ["default.repository"] = "",
         ["default.include"] = "",
@@ -121,6 +122,9 @@ public class ConfigurationService : IConfigurationService
             Model = config.TryGetValue("ai.model", out var model)
                 ? model
                 : s_defaultValues["ai.model"],
+            Provider = config.TryGetValue("ai.provider", out var provider)
+                ? provider
+                : s_defaultValues["ai.provider"],
         };
     }
 

@@ -17,4 +17,5 @@ public record AppConfiguration
     public string BaseUrl { get; init; } = string.Empty;
 #pragma warning restore CA1056 // URI-like properties should not be strings
     public string Model { get; init; } = string.Empty;
+    public string Provider { get; init; } = "dial";
 }

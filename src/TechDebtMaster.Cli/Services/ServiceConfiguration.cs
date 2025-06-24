@@ -21,9 +21,21 @@ public static class ServiceConfiguration
             var configService = provider.GetRequiredService<IConfigurationService>();
 
             var config = configService.GetConfiguration();
-            var builder = Kernel
-                .CreateBuilder()
-                .AddAzureOpenAIChatCompletion(
+            var builder = Kernel.CreateBuilder();
+
+            // Configure based on provider
+            if (config.Provider.Equals("openai", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.AddOpenAIChatCompletion(
+                    modelId: config.Model,
+                    apiKey: config.ApiKey,
+                    httpClient: httpClient
+                );
+            }
+            else
+            {
+                // Default to DIAL (Azure OpenAI compatible)
+                builder.AddAzureOpenAIChatCompletion(
                     deploymentName: config.Model,
                     endpoint: config.BaseUrl,
                     apiKey: config.ApiKey,
@@ -31,6 +43,7 @@ public static class ServiceConfiguration
                     modelId: config.Model,
                     httpClient: httpClient
                 );
+            }
 
             return builder.Build();
         });
