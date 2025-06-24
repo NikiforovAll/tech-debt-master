@@ -19,6 +19,10 @@ await templateService.EnsureTemplatesAsync();
 
 // Set the default command to show welcome screen
 app.SetDefaultCommand<DefaultCommand>();
+
+// Get configuration to determine which commands to register
+var appConfig = config.GetConfiguration();
+
 app.Configure(config =>
 {
     // Configure exception handling
@@ -87,15 +91,36 @@ app.Configure(config =>
                 .WithDescription("Generate an interactive HTML report of technical debt")
                 .WithExample("debt", "report")
                 .WithExample("debt", "report", "--output", "my-report.html")
-                .WithExample("debt", "report", "/home/user/my-repo", "--output", "report.html", "--open")
-                .WithExample("debt", "report", "--include", "\\.cs$", "--output", "csharp-debt.html");
+                .WithExample(
+                    "debt",
+                    "report",
+                    "/home/user/my-repo",
+                    "--output",
+                    "report.html",
+                    "--open"
+                )
+                .WithExample(
+                    "debt",
+                    "report",
+                    "--include",
+                    "\\.cs$",
+                    "--output",
+                    "csharp-debt.html"
+                );
 
             branch
                 .AddCommand<DebtImportCommand>("import")
                 .WithDescription("Import modified HTML report to update analysis data")
                 .WithExample("debt", "import", "modified-report.html")
                 .WithExample("debt", "import", "modified-report.html", "--apply")
-                .WithExample("debt", "import", "modified-report.html", "--repo", "/path/to/repo", "--verbose");
+                .WithExample(
+                    "debt",
+                    "import",
+                    "modified-report.html",
+                    "--repo",
+                    "/path/to/repo",
+                    "--verbose"
+                );
         }
     );
 
@@ -123,36 +148,40 @@ app.Configure(config =>
         }
     );
 
-    config.AddBranch(
-        "dial",
-        branch =>
-        {
-            branch.SetDescription("DIAL API operations");
+    // Only register DIAL commands if provider is DIAL
+    if (appConfig.Provider.Equals("dial", StringComparison.OrdinalIgnoreCase))
+    {
+        config.AddBranch(
+            "dial",
+            branch =>
+            {
+                branch.SetDescription("DIAL API operations");
 
-            branch.AddBranch(
-                "models",
-                modelsBranch =>
-                {
-                    modelsBranch.SetDescription("Model management operations");
+                branch.AddBranch(
+                    "models",
+                    modelsBranch =>
+                    {
+                        modelsBranch.SetDescription("Model management operations");
 
-                    modelsBranch
-                        .AddCommand<DialModelsListCommand>("list")
-                        .WithDescription("List all available DIAL models");
-                    modelsBranch
-                        .AddCommand<DialModelsSetDefaultCommand>("set-default")
-                        .WithDescription(
-                            "Set the default model for AI operations (interactive selection)"
-                        )
-                        .WithExample("dial", "models", "set-default");
-                }
-            );
+                        modelsBranch
+                            .AddCommand<DialModelsListCommand>("list")
+                            .WithDescription("List all available DIAL models");
+                        modelsBranch
+                            .AddCommand<DialModelsSetDefaultCommand>("set-default")
+                            .WithDescription(
+                                "Set the default model for AI operations (interactive selection)"
+                            )
+                            .WithExample("dial", "models", "set-default");
+                    }
+                );
 
-            branch
-                .AddCommand<DialLimitsCommand>("limits")
-                .WithDescription("Get token limits for a specific model")
-                .WithExample("dial", "limits", "gpt-4o-mini-2024-07-18");
-        }
-    );
+                branch
+                    .AddCommand<DialLimitsCommand>("limits")
+                    .WithDescription("Get token limits for a specific model")
+                    .WithExample("dial", "limits", "gpt-4o-mini-2024-07-18");
+            }
+        );
+    }
 
     config.AddBranch(
         "prompts",

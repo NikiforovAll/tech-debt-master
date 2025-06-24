@@ -14,6 +14,7 @@ public class ConfigSetCommand(IConfigurationService configurationService)
         "ai.key",
         "ai.endpoint",
         "ai.model",
+        "ai.provider",
         "prompt.default",
         "default.repository",
         "default.include",
@@ -33,6 +34,21 @@ public class ConfigSetCommand(IConfigurationService configurationService)
                 AnsiConsole.MarkupLine($"  - {key}");
             }
             return 1;
+        }
+
+        if (settings.Key == "ai.provider")
+        {
+            var validProviders = new[] { "dial", "openai" };
+            if (!validProviders.Contains(settings.Value, StringComparer.OrdinalIgnoreCase))
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] Invalid provider '{settings.Value}'.");
+                AnsiConsole.MarkupLine("[yellow]Valid providers are:[/]");
+                foreach (var provider in validProviders)
+                {
+                    AnsiConsole.MarkupLine($"  - {provider}");
+                }
+                return 1;
+            }
         }
 
         await configurationService.SetAsync(settings.Key, settings.Value);
