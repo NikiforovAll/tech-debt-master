@@ -108,6 +108,10 @@ public class HelpCommand : Command<HelpCommand.Settings>
             new Text("Get token limits for a specific model")
         );
         table.AddRow(
+            new Markup("[green]mcp[/]"),
+            new Text("Start Model Context Protocol server")
+        );
+        table.AddRow(
             new Markup("[green]clean[/]"),
             new Text("Remove the .tdm folder from the current directory")
         );

@@ -1,0 +1,7 @@
+{
+    "servers": {
+        "tech-debt-master": {
+            "url": "http://localhost:3001"
+        }
+    }
+}

@@ -41,6 +41,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         table.AddRow(new Markup("[green]config[/]"), new Text("Configuration management"));
         table.AddRow(new Markup("[green]prompts[/]"), new Text("Prompt template management"));
         table.AddRow(new Markup("[green]dial[/]"), new Text("DIAL API operations"));
+        table.AddRow(new Markup("[green]mcp[/]"), new Text("Start Model Context Protocol server"));
         table.AddRow(new Markup("[green]clean[/]"), new Text("Clean up .tdm folder"));
         table.AddRow(new Markup("[green]help[/]"), new Text("Show detailed help with examples"));
 
