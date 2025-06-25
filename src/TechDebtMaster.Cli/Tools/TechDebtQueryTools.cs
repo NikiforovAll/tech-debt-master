@@ -29,7 +29,9 @@ public static class TechDebtQueryTools
         [Description(
             "Filter by tag: CodeSmell, Naming, MagicNumber, Complexity, ErrorHandling, OutdatedPattern, Todo, Performance, Security, General (optional)"
         )]
-            string? tagFilter = null
+            string? tagFilter = null,
+        [Description("Page number (1-based, default: 1)")] int page = 1,
+        [Description("Items per page (default: 5)")] int pageSize = 5
     )
     {
         var repositoryPath = pathProvider.RepositoryPath;
@@ -55,9 +57,18 @@ public static class TechDebtQueryTools
         var allFilteredItems = filteredFileDebtMap.Values.SelectMany(items => items).ToList();
         var totalOriginalItems = fileDebtMap.Values.SelectMany(items => items).ToList();
 
-        var issues = allFilteredItems
+        var orderedItems = allFilteredItems
             .OrderByDescending(item => item.Severity)
             .ThenBy(item => item.Id)
+            .ToList();
+
+        var totalPages = (int)Math.Ceiling((double)allFilteredItems.Count / pageSize);
+        var validatedPage = Math.Max(1, Math.Min(page, Math.Max(1, totalPages)));
+        var skip = (validatedPage - 1) * pageSize;
+
+        var paginatedItems = orderedItems.Skip(skip).Take(pageSize).ToList();
+
+        var issues = paginatedItems
             .Select(item => new TechnicalDebtIssue
             {
                 Id = item.Id,
@@ -76,6 +87,11 @@ public static class TechDebtQueryTools
             {
                 TotalIssues = totalOriginalItems.Count,
                 FilteredIssues = allFilteredItems.Count,
+                CurrentPage = validatedPage,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                HasNextPage = validatedPage < totalPages,
+                HasPreviousPage = validatedPage > 1,
             },
             Filters = new TechDebtFilters
             {

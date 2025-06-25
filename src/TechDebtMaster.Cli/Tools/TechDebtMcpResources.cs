@@ -16,7 +16,7 @@ public static class TechDebtMcpResources
 {
     [
         McpServerResource(
-            UriTemplate = "debt://{filePath}/{id}",
+            UriTemplate = "debt://{filePath}:{id}",
             Name = "tdm-item-as-resource",
             MimeType = "text/markdown"
         ),
