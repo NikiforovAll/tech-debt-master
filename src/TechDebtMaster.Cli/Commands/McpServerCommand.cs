@@ -2,7 +2,7 @@ using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using TechDebtMaster.Cli.Services;
-using TechDebtMaster.Cli.Tools;
+using TechDebtMaster.Cli.Tools.Shared;
 
 namespace TechDebtMaster.Cli.Commands;
 
@@ -48,7 +48,11 @@ public class McpServerCommand(IConfigurationService configurationService)
             );
             builder.Services.ConfigureServices();
 
-            builder.Services.AddMcpServer().WithHttpTransport().WithToolsFromAssembly();
+            builder
+                .Services.AddMcpServer()
+                .WithHttpTransport()
+                .WithToolsFromAssembly()
+                .WithResourcesFromAssembly();
 
             var app = builder.Build();
 

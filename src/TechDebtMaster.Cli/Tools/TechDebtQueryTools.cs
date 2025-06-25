@@ -14,7 +14,7 @@ namespace TechDebtMaster.Cli.Tools;
 public static class TechDebtQueryTools
 {
     [
-        McpServerTool(Name = "tdm-list-file-issues"),
+        McpServerTool(Name = "tdm-list-items"),
         Description(
             "Get a list of technical debt issues across all files, with optional filtering by pattern, severity, and tags."
         )
@@ -88,7 +88,7 @@ public static class TechDebtQueryTools
     }
 
     [
-        McpServerTool(Name = "tdm-get-debt-item"),
+        McpServerTool(Name = "tdm-get-item"),
         Description(
             "Get a specific technical debt item by its ID in the format 'filePath:id' and return its markdown description as an MCP resource"
         )

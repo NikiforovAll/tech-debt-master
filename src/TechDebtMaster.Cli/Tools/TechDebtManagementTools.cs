@@ -16,7 +16,7 @@ namespace TechDebtMaster.Cli.Tools;
 public static class TechDebtManagementTools
 {
     [
-        McpServerTool(Name = "tdm-remove-debt-item"),
+        McpServerTool(Name = "tdm-remove-item"),
         Description(
             "Remove a specific technical debt item by its ID in the format 'filePath:id'. This will delete both the debt item metadata from analysis and its associated content file."
         )
@@ -34,7 +34,9 @@ public static class TechDebtManagementTools
         var repositoryPath = pathProvider.RepositoryPath;
 
         // Validate and parse the debt ID format
-        if (!TechDebtToolsUtils.TryParseDebtId(debtId, out var targetFilePath, out var targetItemId))
+        if (
+            !TechDebtToolsUtils.TryParseDebtId(debtId, out var targetFilePath, out var targetItemId)
+        )
         {
             return new RemoveDebtResponse
             {
@@ -65,7 +67,11 @@ public static class TechDebtManagementTools
         var debtItems = TechDebtToolsUtils.ExtractDebtItemsWithFilePath(fileDebtMap);
 
         // Find the specific debt item
-        var targetItem = TechDebtToolsUtils.FindSpecificDebtItem(debtItems, targetFilePath, targetItemId);
+        var targetItem = TechDebtToolsUtils.FindSpecificDebtItem(
+            debtItems,
+            targetFilePath,
+            targetItemId
+        );
         if (targetItem == null)
         {
             return new RemoveDebtResponse
@@ -73,8 +79,7 @@ public static class TechDebtManagementTools
                 RepositoryPath = repositoryPath,
                 DebtId = debtId,
                 Success = false,
-                Error =
-                    $"Debt item '{debtId}' not found. Use tdm-list-file-issues to list available items.",
+                Error = $"Debt item '{debtId}' not found. ",
             };
         }
 

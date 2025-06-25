@@ -13,7 +13,7 @@ namespace TechDebtMaster.Cli.Tools;
 public static class TechDebtStatisticsTools
 {
     [
-        McpServerTool(Name = "tdm-get-repo-stats"),
+        McpServerTool(Name = "tdm-show-repo-stats"),
         Description(
             "Get comprehensive technical debt statistics including tag distribution, severity distribution, and file analysis counts."
         )
