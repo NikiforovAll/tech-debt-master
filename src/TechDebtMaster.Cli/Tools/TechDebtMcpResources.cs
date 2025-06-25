@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ModelContextProtocol.Server;
 using TechDebtMaster.Cli.Services;
 using TechDebtMaster.Cli.Services.Analysis;
+using TechDebtMaster.Cli.Tools.Shared;
 using TechDebtMaster.Cli.Utilities;
 
 namespace TechDebtMaster.Cli.Tools;
