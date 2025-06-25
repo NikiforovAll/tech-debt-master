@@ -124,6 +124,13 @@ app.Configure(config =>
     );
 
     config
+        .AddCommand<InitCommand>("init")
+        .WithDescription("Initialize TechDebtMaster in the current repository")
+        .WithExample("init")
+        .WithExample("init", "--profile", "vscode")
+        .WithExample("init", "--force");
+
+    config
         .AddCommand<CleanCommand>("clean")
         .WithDescription("Remove the .tdm folder from the current directory");
 

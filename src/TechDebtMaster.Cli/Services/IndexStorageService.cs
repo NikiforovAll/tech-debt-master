@@ -12,6 +12,7 @@ public interface IIndexStorageService
 public class IndexStorageService(IHashCalculator hashCalculator) : IIndexStorageService
 {
     private const string IndexDirectoryName = ".tdm";
+    private readonly IHashCalculator _hashCalculator = hashCalculator;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
@@ -20,9 +21,9 @@ public class IndexStorageService(IHashCalculator hashCalculator) : IIndexStorage
 
     public async Task<IndexData?> LoadLatestIndexAsync(string repositoryPath)
     {
-        var repoHash = GetRepositoryHash(repositoryPath);
+        var repoNameSuffix = GetNormalizedRepositoryName(repositoryPath);
         var indexDir = GetIndexDirectory(repositoryPath);
-        var metadataPath = Path.Combine(indexDir, $"metadata_{repoHash}.json");
+        var metadataPath = Path.Combine(indexDir, $"metadata{repoNameSuffix}.json");
 
         if (!File.Exists(metadataPath))
         {
@@ -56,11 +57,11 @@ public class IndexStorageService(IHashCalculator hashCalculator) : IIndexStorage
 
     public async Task SaveIndexAsync(string repositoryPath, IndexData indexData)
     {
-        var repoHash = GetRepositoryHash(repositoryPath);
+        var repoNameSuffix = GetNormalizedRepositoryName(repositoryPath);
         var indexDir = GetIndexDirectory(repositoryPath);
         Directory.CreateDirectory(indexDir);
 
-        var indexFileName = $"index_{repoHash}_{indexData.Timestamp:yyyyMMdd_HHmmss}.json";
+        var indexFileName = $"index{repoNameSuffix}_{indexData.Timestamp:yyyyMMdd_HHmmss}.json";
         var indexPath = Path.Combine(indexDir, indexFileName);
 
         var indexJson = JsonSerializer.Serialize(indexData, _jsonOptions);
@@ -73,7 +74,7 @@ public class IndexStorageService(IHashCalculator hashCalculator) : IIndexStorage
             LastUpdated = indexData.Timestamp,
         };
 
-        var metadataPath = Path.Combine(indexDir, $"metadata_{repoHash}.json");
+        var metadataPath = Path.Combine(indexDir, $"metadata{repoNameSuffix}.json");
         var metadataJson = JsonSerializer.Serialize(metadata, _jsonOptions);
         await File.WriteAllTextAsync(metadataPath, metadataJson);
     }
@@ -83,12 +84,31 @@ public class IndexStorageService(IHashCalculator hashCalculator) : IIndexStorage
         return Path.Combine(Directory.GetCurrentDirectory(), IndexDirectoryName);
     }
 
-    private string GetRepositoryHash(string repositoryPath)
+    private static string GetNormalizedRepositoryName(string repositoryPath)
     {
-        var normalizedPath = Path.GetFullPath(repositoryPath).ToLowerInvariant();
-        var hash = hashCalculator.CalculateHash(normalizedPath);
-        return hash.Substring(0, 8);
+        // Get the full path and normalize it
+        var fullPath = Path.GetFullPath(repositoryPath);
+
+        // Check if it's the current directory
+        if (fullPath == Directory.GetCurrentDirectory())
+        {
+            return string.Empty; // No suffix for current directory
+        }
+
+        // Get the last directory name
+        var directoryName = new DirectoryInfo(fullPath).Name;
+
+        // Sanitize the name by replacing invalid characters with underscores
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Join(
+            "",
+            directoryName.Select(c => invalidChars.Contains(c) ? '_' : c)
+        );
+
+        // Ensure it's not empty and add underscore prefix
+        return string.IsNullOrWhiteSpace(sanitized) ? "_default" : $"_{sanitized}";
     }
+
 }
 
 public class IndexData

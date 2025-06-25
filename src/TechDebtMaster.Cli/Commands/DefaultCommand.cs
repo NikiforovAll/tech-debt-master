@@ -33,6 +33,10 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
 
         var table = new Table().Border(TableBorder.None).HideHeaders().AddColumn("").AddColumn("");
 
+        table.AddRow(
+            new Markup("[green]init[/]"),
+            new Text("Initialize TechDebtMaster in repository")
+        );
         table.AddRow(new Markup("[green]repo[/]"), new Text("Repository management and indexing"));
         table.AddRow(
             new Markup("[green]debt[/]"),
@@ -50,6 +54,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
 
         // Quick start
         AnsiConsole.MarkupLine("[bold underline]Quick Start:[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm init[/]           [dim]# Initialize TechDebtMaster[/]");
         AnsiConsole.MarkupLine("  [blue]tdm repo index[/]     [dim]# Index your repository[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt analyze[/]   [dim]# Analyze technical debt[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt show[/]      [dim]# View results[/]");

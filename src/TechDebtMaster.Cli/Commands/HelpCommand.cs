@@ -79,6 +79,10 @@ public class HelpCommand : Command<HelpCommand.Settings>
 
         // System Management
         table.AddRow(new Markup("[bold green]System Management[/]"), new Text(""));
+        table.AddRow(
+            new Markup("[green]init[/]"),
+            new Text("Initialize TechDebtMaster in the current repository")
+        );
         table.AddRow(new Markup("[green]config[/]"), new Text("Manage configuration settings"));
         table.AddRow(
             new Markup("  [dim]├─[/] [green]show[/]"),
@@ -107,10 +111,7 @@ public class HelpCommand : Command<HelpCommand.Settings>
             new Markup("  [dim]└─[/] [green]limits[/]"),
             new Text("Get token limits for a specific model")
         );
-        table.AddRow(
-            new Markup("[green]mcp[/]"),
-            new Text("Start Model Context Protocol server")
-        );
+        table.AddRow(new Markup("[green]mcp[/]"), new Text("Start Model Context Protocol server"));
         table.AddRow(
             new Markup("[green]clean[/]"),
             new Text("Remove the .tdm folder from the current directory")
@@ -122,6 +123,15 @@ public class HelpCommand : Command<HelpCommand.Settings>
 
         // Display workflow examples
         AnsiConsole.MarkupLine("[bold underline]Typical Workflow:[/]");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold cyan]0. Initialization[/]");
+        AnsiConsole.MarkupLine("  [dim]# Initialize TechDebtMaster in repository (basic)[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm init[/]");
+        AnsiConsole.MarkupLine("  [dim]# Initialize with VS Code integration[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm init --profile vscode[/]");
+        AnsiConsole.MarkupLine("  [dim]# Force overwrite existing configuration[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm init --force[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold cyan]1. Setup & Configuration[/]");
@@ -163,6 +173,20 @@ public class HelpCommand : Command<HelpCommand.Settings>
         AnsiConsole.MarkupLine("  [blue]tdm debt import modified-report.html[/]");
         AnsiConsole.MarkupLine("  [dim]# Apply changes from modified report[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt import modified-report.html --apply[/]");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold magenta]6. MCP Integration (Model Context Protocol)[/]");
+        AnsiConsole.MarkupLine("  [dim]# Start MCP server for external tool integration[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm mcp[/]");
+        AnsiConsole.MarkupLine("  [dim]# Start MCP server with specific repository[/]");
+        AnsiConsole.MarkupLine("  [dim]# Start MCP server on custom port[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm mcp --port 3001[/]");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[dim]MCP provides programmatic access to TechDebtMaster via:[/]");
+        AnsiConsole.MarkupLine("[dim]  • Tools: Query debt items, statistics, and management[/]");
+        AnsiConsole.MarkupLine("[dim]  • Resources: Access detailed debt item content[/]");
+        AnsiConsole.MarkupLine("[dim]  • Prompts: Guided technical debt resolution workflows[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Advanced Examples:[/]");
