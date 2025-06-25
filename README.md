@@ -109,6 +109,14 @@ dotnet run --project src/TechDebtMaster.Cli -- analyze "C:\my-project"
 
 # Analyze a repository on Linux/macOS
 dotnet run --project src/TechDebtMaster.Cli -- analyze "/home/user/my-project"
+
+
+### Run the inspector:
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+
 ```
 ## Roadmap
 

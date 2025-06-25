@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Spectre.Console;
+﻿using Spectre.Console;
 using Spectre.Console.Cli;
 using TechDebtMaster.Cli.Commands;
 using TechDebtMaster.Cli.Services;
@@ -125,8 +124,22 @@ app.Configure(config =>
     );
 
     config
+        .AddCommand<InitCommand>("init")
+        .WithDescription("Initialize TechDebtMaster in the current repository")
+        .WithExample("init")
+        .WithExample("init", "--profile", "vscode")
+        .WithExample("init", "--force");
+
+    config
         .AddCommand<CleanCommand>("clean")
         .WithDescription("Remove the .tdm folder from the current directory");
+
+    config
+        .AddCommand<McpServerCommand>("mcp")
+        .WithDescription("Start MCP (Model Context Protocol) server")
+        .WithExample("mcp")
+        .WithExample("mcp", "/path/to/repo")
+        .WithExample("mcp", "--port", "3001");
 
     config
         .AddCommand<HelpCommand>("help")

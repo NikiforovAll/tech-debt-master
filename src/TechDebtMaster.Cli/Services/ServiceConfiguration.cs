@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using TechDebtMaster.Cli.Commands;
 using TechDebtMaster.Cli.Services.Analysis;
@@ -57,6 +56,7 @@ public static class ServiceConfiguration
         services.AddScoped<ConfigShowCommand>();
         services.AddScoped<ConfigSetCommand>();
         services.AddScoped<DialLimitsCommand>();
+        services.AddScoped<McpServerCommand>();
         services.AddScoped<PromptsEditCommand>();
         services.AddScoped<PromptsRestoreTemplatesCommand>();
         services.AddScoped<PromptsSetDefaultCommand>();

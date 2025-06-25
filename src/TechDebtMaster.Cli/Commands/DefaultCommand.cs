@@ -33,6 +33,10 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
 
         var table = new Table().Border(TableBorder.None).HideHeaders().AddColumn("").AddColumn("");
 
+        table.AddRow(
+            new Markup("[green]init[/]"),
+            new Text("Initialize TechDebtMaster in repository")
+        );
         table.AddRow(new Markup("[green]repo[/]"), new Text("Repository management and indexing"));
         table.AddRow(
             new Markup("[green]debt[/]"),
@@ -41,6 +45,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         table.AddRow(new Markup("[green]config[/]"), new Text("Configuration management"));
         table.AddRow(new Markup("[green]prompts[/]"), new Text("Prompt template management"));
         table.AddRow(new Markup("[green]dial[/]"), new Text("DIAL API operations"));
+        table.AddRow(new Markup("[green]mcp[/]"), new Text("Start Model Context Protocol server"));
         table.AddRow(new Markup("[green]clean[/]"), new Text("Clean up .tdm folder"));
         table.AddRow(new Markup("[green]help[/]"), new Text("Show detailed help with examples"));
 
@@ -49,6 +54,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
 
         // Quick start
         AnsiConsole.MarkupLine("[bold underline]Quick Start:[/]");
+        AnsiConsole.MarkupLine("  [blue]tdm init[/]           [dim]# Initialize TechDebtMaster[/]");
         AnsiConsole.MarkupLine("  [blue]tdm repo index[/]     [dim]# Index your repository[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt analyze[/]   [dim]# Analyze technical debt[/]");
         AnsiConsole.MarkupLine("  [blue]tdm debt show[/]      [dim]# View results[/]");

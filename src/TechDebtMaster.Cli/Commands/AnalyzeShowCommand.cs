@@ -5,7 +5,7 @@ using Spectre.Console.Cli;
 using Spectre.Console.Rendering;
 using TechDebtMaster.Cli.Services;
 using TechDebtMaster.Cli.Services.Analysis;
-using TechDebtMaster.Cli.Services.Analysis.Handlers;
+using TechDebtMaster.Cli.Utilities;
 
 namespace TechDebtMaster.Cli.Commands;
 
@@ -86,7 +86,7 @@ public class AnalyzeShowCommand(
         }
 
         // Extract debt items from analysis report
-        var fileDebtMap = ExtractDebtItems(analysisReport);
+        var fileDebtMap = AnalysisResultUtils.ExtractDebtItems(analysisReport);
 
         if (fileDebtMap.Count == 0)
         {
@@ -130,53 +130,6 @@ public class AnalyzeShowCommand(
         AnsiConsole.Write(layout);
 
         return 0;
-    }
-
-    private static Dictionary<string, List<TechnicalDebtItem>> ExtractDebtItems(
-        AnalysisReport analysisReport
-    )
-    {
-        var fileDebtMap = new Dictionary<string, List<TechnicalDebtItem>>();
-        var jsonOptions = new System.Text.Json.JsonSerializerOptions
-        {
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
-            WriteIndented = false,
-        };
-
-        foreach (var (filePath, fileHistory) in analysisReport.FileHistories)
-        {
-            if (
-                fileHistory.Current.AnalysisResults.TryGetValue(
-                    TechDebtAnalysisHandler.ResultKey,
-                    out var resultObj
-                )
-            )
-            {
-                TechDebtAnalysisResult? techDebtResult = null;
-#pragma warning disable CA1031 // Do not catch general exception types
-                try
-                {
-                    var json = System.Text.Json.JsonSerializer.Serialize(resultObj, jsonOptions);
-                    techDebtResult =
-                        System.Text.Json.JsonSerializer.Deserialize<TechDebtAnalysisResult>(
-                            json,
-                            jsonOptions
-                        );
-                }
-                catch
-                {
-                    // Ignore deserialization errors
-                }
-#pragma warning restore CA1031 // Do not catch general exception types
-
-                if (techDebtResult?.Items?.Count > 0)
-                {
-                    fileDebtMap[filePath] = techDebtResult.Items;
-                }
-            }
-        }
-
-        return fileDebtMap;
     }
 
     private static Dictionary<string, List<TechnicalDebtItem>> ApplyFiltering(

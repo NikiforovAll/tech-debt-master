@@ -98,22 +98,22 @@ public class AnalysisService(
 
     private async Task<AnalysisReport?> LoadPreviousAnalysisAsync(string repositoryPath)
     {
-        var repoHash = GetRepositoryHash(repositoryPath);
-        var analysisPath = GetAnalysisPath(repositoryPath, repoHash);
+        var repoNameSuffix = GetNormalizedRepositoryName(repositoryPath);
+        var analysisPath = GetAnalysisPath(repositoryPath, repoNameSuffix);
 
         if (!File.Exists(analysisPath))
         {
             return null;
         }
 
-        var json = await File.ReadAllTextAsync(analysisPath);
-        return JsonSerializer.Deserialize<AnalysisReport>(json, _jsonOptions);
+        var jsonContent = await File.ReadAllTextAsync(analysisPath);
+        return JsonSerializer.Deserialize<AnalysisReport>(jsonContent, _jsonOptions);
     }
 
     public async Task SaveAnalysisReportAsync(string repositoryPath, AnalysisReport report)
     {
-        var repoHash = GetRepositoryHash(repositoryPath);
-        var analysisPath = GetAnalysisPath(repositoryPath, repoHash);
+        var repoNameSuffix = GetNormalizedRepositoryName(repositoryPath);
+        var analysisPath = GetAnalysisPath(repositoryPath, repoNameSuffix);
 
         var indexDir = _storageService.GetIndexDirectory(repositoryPath);
         Directory.CreateDirectory(indexDir);
@@ -127,17 +127,35 @@ public class AnalysisService(
         await SaveAnalysisReportAsync(repositoryPath, report);
     }
 
-    private string GetAnalysisPath(string repositoryPath, string repoHash)
+    private string GetAnalysisPath(string repositoryPath, string repoNameSuffix)
     {
         var indexDir = _storageService.GetIndexDirectory(repositoryPath);
-        return Path.Combine(indexDir, $"analysis_{repoHash}.json");
+        return Path.Combine(indexDir, $"analysis{repoNameSuffix}.json");
     }
 
-    private string GetRepositoryHash(string repositoryPath)
+    private string GetNormalizedRepositoryName(string repositoryPath)
     {
-        var normalizedPath = Path.GetFullPath(repositoryPath).ToLowerInvariant();
-        var hash = _hashCalculator.CalculateHash(normalizedPath);
-        return hash.Substring(0, 8);
+        // Get the full path and normalize it
+        var fullPath = Path.GetFullPath(repositoryPath);
+
+        // Check if it's the current directory
+        if (fullPath == Directory.GetCurrentDirectory())
+        {
+            return string.Empty; // No suffix for current directory
+        }
+
+        // Get the last directory name
+        var directoryName = new DirectoryInfo(fullPath).Name;
+
+        // Sanitize the name by replacing invalid characters with underscores
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Join(
+            "",
+            directoryName.Select(c => invalidChars.Contains(c) ? '_' : c)
+        );
+
+        // Ensure it's not empty and add underscore prefix
+        return string.IsNullOrWhiteSpace(sanitized) ? "_default" : $"_{sanitized}";
     }
 }
 
