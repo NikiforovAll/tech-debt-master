@@ -15,6 +15,7 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
         var currentDirectory = Directory.GetCurrentDirectory();
         var vscodeDir = Path.Combine(currentDirectory, ".vscode");
         var mcpJsonPath = Path.Combine(vscodeDir, "mcp.json");
+        var rootMcpJsonPath = Path.Combine(currentDirectory, ".mcp.json");
         var gitHubPromptsDir = Path.Combine(currentDirectory, ".github", "prompts");
         var promptFilePath = Path.Combine(gitHubPromptsDir, "tdm-work-on-debt.prompt.md");
         var gitIgnorePath = Path.Combine(currentDirectory, ".gitignore");
@@ -24,6 +25,12 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
             var isVscodeProfile = string.Equals(
                 settings.Profile,
                 "vscode",
+                StringComparison.OrdinalIgnoreCase
+            );
+
+            var isClaudeProfile = string.Equals(
+                settings.Profile,
+                "claude",
                 StringComparison.OrdinalIgnoreCase
             );
 
@@ -50,6 +57,21 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
                     "[green]✓[/] Created .github/prompts/tdm-work-on-debt.prompt.md"
                 );
             }
+            else if (isClaudeProfile)
+            {
+                // Check if .mcp.json already exists
+                if (File.Exists(rootMcpJsonPath) && !settings.Force)
+                {
+                    AnsiConsole.MarkupLine(
+                        "[yellow]Warning:[/] .mcp.json already exists. Use --force to overwrite."
+                    );
+                    return 1;
+                }
+
+                // Create .mcp.json configuration in root directory
+                await CreateClaudeMcpConfigurationAsync(rootMcpJsonPath);
+                AnsiConsole.MarkupLine("[green]✓[/] Created .mcp.json configuration");
+            }
 
             // Always update .gitignore to include .tdm folder
             await UpdateGitIgnoreAsync(gitIgnorePath);
@@ -57,7 +79,7 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
 
             AnsiConsole.MarkupLine("[green]✓[/] TechDebtMaster initialization complete!");
 
-            if (isVscodeProfile)
+            if (isVscodeProfile || isClaudeProfile)
             {
                 AnsiConsole.MarkupLine("[dim]You can now start the MCP server with:[/] tdm mcp");
             }
@@ -86,63 +108,88 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
         await File.WriteAllTextAsync(mcpJsonPath, jsonContent);
     }
 
+    private static async Task CreateClaudeMcpConfigurationAsync(string mcpJsonPath)
+    {
+        var mcpConfig = new
+        {
+            mcpServers = new
+            {
+                techdebtmaster = new { type = "http", url = "http://127.0.0.1:3001" },
+            },
+        };
+
+        var options = new JsonSerializerOptions { WriteIndented = true };
+
+        var jsonContent = JsonSerializer.Serialize(mcpConfig, options);
+        await File.WriteAllTextAsync(mcpJsonPath, jsonContent);
+    }
+
     private static async Task CreatePromptFileAsync(string promptFilePath)
     {
         var promptContent = """
-# Technical Debt Workflow
+            ---
+            mode: agent
+            tools: ['changes', 'codebase', 'editFiles', 'fetch', 'findTestFiles', 'problems', 'runCommands', 'runTasks', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'tdm-get-item', 'tdm-list-items', 'tdm-remove-item', 'tdm-show-repo-stats']
+            description: 'An autonomous workflow for identifying, analyzing, and resolving technical debt in a codebase to improve maintainability and efficiency.'
+            ---
 
-**Mode:** agent  
-**Tools:** changes, codebase, editFiles, fetch, findTestFiles, problems, runCommands, runTasks, search, searchResults, terminalLastCommand, terminalSelection, testFailure, usages, tdm-get-item, tdm-list-items, tdm-remove-item, tdm-show-repo-stats  
-**Description:** An autonomous workflow for identifying, analyzing, and resolving technical debt in a codebase to improve maintainability and efficiency.
+            ## Workflow
 
-## Workflow
+            Execute the following workflow to systematically address technical debt:
 
-Execute the following workflow to systematically address technical debt:
+            ### 1. Assessment Phase
+            - Use `tdm-show-repo-stats` to gather repository-wide technical debt metrics
+            - Review debt distribution across files, types, and severity levels
+            - Document initial findings for reference
 
-### 1. Assessment Phase
-- Use 'tdm-show-repo-stats' to gather repository-wide technical debt metrics
-- Review debt distribution across files, types, and severity levels
-- Document initial findings for reference
+            ### 2. Prioritization Phase
+            - Use `tdm-list-items` to retrieve first page of technical debt items (they are already sorted by priority by default)
+            - Do not fetch all items at once, only the first page (max 5 items)
+            - Present a user with an items as markdown table
+            - Don't use `tdm-get-item` yet
 
-### 2. Prioritization Phase
-- Use 'tdm-list-items' to retrieve first page of technical debt items (they are already sorted by priority by default)
-- Present a user with an items as markdown table
-- Don't use `tdm-get-item` yet
+            ### 3. Verification Phase
+            - For each item in the list:
+            - Use `tdm-get-item` to fetch detailed information about the item
+            - Present the item to the user for review
+            - Ask user for confirmation to proceed with the item
 
-### 3. Resolution Phase (ONE BY ONE)
-- Use 'tdm-get-item' to fetch detailed item information
-- Present user with the item
-- Analyze item validity:
-  - Review related code
-  - Verify if debt is still relevant
-  - Document investigation findings
-- For each valid item:
-  - Implement necessary fixes
-- Remove resolved items using 'tdm-remove-item'
-- Complete ALL debt items in current file before proceeding
+            ### 4. Resolution Phase
+            - Use `tdm-get-item` to fetch detailed item information
+            - Present user with the item
+            - Analyze item validity:
+            - Review related code
+            - Verify if debt is still relevant
+            - Document investigation findings
+            - For each valid item:
+            - Implement necessary fixes
+            - Remove resolved items using `tdm-remove-item`
+            - Complete ALL debt items in current file before proceeding
 
-### 4. Validation Requirements
-- Ensure all changes maintain existing functionality
-- Document any architectural decisions
-- Request human review for complex changes
+            ### 5. Validation Requirements
+            - Ensure all changes maintain existing functionality
+            - Document any architectural decisions
+            - Request human review for complex changes
 
-## Constraints
+            ## Constraints
 
-Request clarification when:
-- Item description is ambiguous
-- Multiple resolution approaches exist
-- Implementation impact is unclear
-- Dependencies affect other components
+            Request clarification when:
+            - Item description is ambiguous
+            - Multiple resolution approaches exist
+            - Implementation impact is unclear
+            - Dependencies affect other components
 
-Use emojis where appropriate:
-- ✅ for completed tasks
-- ❗ for issues or blockers
-- 📄 for documentation updates
+            Use emojis where appropriate:
+            - ✅ for completed tasks
+            - ❗ for issues or blockers
+            - 📄 for documentation updates
+            - 📊 Assessment Phase
+            - 📋 Prioritization Phase
 
-- Once item is resolved or if it is not relevant anymore, remove it from the list using 'tdm-remove-item'. 
-- Ask user for confirmation before removing.
-- Ask user before starting the next item.
-""";
+            - Once item is resolved or if it is not relevant anymore, remove it from the list using 'tdm-remove-item'. 
+            - Ask user for confirmation before removing.
+            - Ask user before starting the next item.
+            """;
 
         await File.WriteAllTextAsync(promptFilePath, promptContent);
     }
@@ -178,7 +225,7 @@ Use emojis where appropriate:
         [CommandOption("-f|--force")]
         public bool Force { get; init; }
 
-        [Description("Profile to initialize (vscode)")]
+        [Description("Profile to initialize (vscode, claude)")]
         [CommandOption("-p|--profile")]
         public string? Profile { get; init; }
     }
