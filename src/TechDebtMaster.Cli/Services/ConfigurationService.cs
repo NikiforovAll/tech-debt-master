@@ -12,8 +12,8 @@ public class ConfigurationService : IConfigurationService
         ["ai.url"] = "https://ai-proxy.lab.epam.com",
         ["ai.model"] = "gpt-4o",
         ["ai.provider"] = "dial",
-        ["prompt.default"] = "techdebt-analysis",
-        ["default.repository"] = "",
+        ["prompt.default"] = "default",
+        ["default.repository"] = ".",
         ["default.include"] = "",
         ["default.exclude"] = "",
     };
