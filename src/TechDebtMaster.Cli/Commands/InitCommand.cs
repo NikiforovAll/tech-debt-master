@@ -19,6 +19,8 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
         var gitHubPromptsDir = Path.Combine(currentDirectory, ".github", "prompts");
         var promptFilePath = Path.Combine(gitHubPromptsDir, "tdm-work-on-debt.prompt.md");
         var gitIgnorePath = Path.Combine(currentDirectory, ".gitignore");
+        var geminiDir = Path.Combine(currentDirectory, ".gemini");
+        var geminiSettingsPath = Path.Combine(geminiDir, "settings.json");
 
         try
         {
@@ -31,6 +33,12 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
             var isClaudeProfile = string.Equals(
                 settings.Profile,
                 "claude",
+                StringComparison.OrdinalIgnoreCase
+            );
+
+            var isGeminiProfile = string.Equals(
+                settings.Profile,
+                "gemini",
                 StringComparison.OrdinalIgnoreCase
             );
 
@@ -72,6 +80,22 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
                 await CreateClaudeMcpConfigurationAsync(rootMcpJsonPath);
                 AnsiConsole.MarkupLine("[green]✓[/] Created .mcp.json configuration");
             }
+            else if (isGeminiProfile)
+            {
+                // Check if .gemini/settings.json already exists
+                if (File.Exists(geminiSettingsPath) && !settings.Force)
+                {
+                    AnsiConsole.MarkupLine(
+                        "[yellow]Warning:[/] .gemini/settings.json already exists. Use --force to overwrite."
+                    );
+                    return 1;
+                }
+
+                // Create .gemini directory and settings.json configuration
+                Directory.CreateDirectory(geminiDir);
+                await CreateGeminiConfigurationAsync(geminiSettingsPath);
+                AnsiConsole.MarkupLine("[green]✓[/] Created .gemini/settings.json configuration");
+            }
 
             // Always update .gitignore to include .tdm folder
             await UpdateGitIgnoreAsync(gitIgnorePath);
@@ -79,7 +103,7 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
 
             AnsiConsole.MarkupLine("[green]✓[/] TechDebtMaster initialization complete!");
 
-            if (isVscodeProfile || isClaudeProfile)
+            if (isVscodeProfile || isClaudeProfile || isGeminiProfile)
             {
                 AnsiConsole.MarkupLine("[dim]You can now start the MCP server with:[/] tdm mcp");
             }
@@ -122,6 +146,22 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
 
         var jsonContent = JsonSerializer.Serialize(mcpConfig, options);
         await File.WriteAllTextAsync(mcpJsonPath, jsonContent);
+    }
+
+    private static async Task CreateGeminiConfigurationAsync(string geminiSettingsPath)
+    {
+        var geminiConfig = new
+        {
+            mcpServers = new
+            {
+                techdebtmaster = new { httpUrl = "http://127.0.0.1:3001" },
+            },
+        };
+
+        var options = new JsonSerializerOptions { WriteIndented = true };
+
+        var jsonContent = JsonSerializer.Serialize(geminiConfig, options);
+        await File.WriteAllTextAsync(geminiSettingsPath, jsonContent);
     }
 
     private static async Task CreatePromptFileAsync(string promptFilePath)
@@ -225,7 +265,7 @@ public class InitCommand : AsyncCommand<InitCommand.Settings>
         [CommandOption("-f|--force")]
         public bool Force { get; init; }
 
-        [Description("Profile to initialize (vscode, claude)")]
+        [Description("Profile to initialize (vscode, claude, gemini)")]
         [CommandOption("-p|--profile")]
         public string? Profile { get; init; }
     }
