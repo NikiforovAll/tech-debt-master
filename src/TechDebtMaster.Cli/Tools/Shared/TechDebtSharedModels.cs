@@ -34,6 +34,7 @@ public class FileIssuesSummary
 public class TechnicalDebtIssue
 {
     public string Id { get; set; } = string.Empty;
+    public string FilePath { get; set; } = string.Empty;
     public string Summary { get; set; } = string.Empty;
     public string Severity { get; set; } = string.Empty;
     public string[] Tags { get; set; } = [];

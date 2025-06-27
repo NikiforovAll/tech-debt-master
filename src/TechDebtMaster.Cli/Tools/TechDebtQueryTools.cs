@@ -54,12 +54,12 @@ public static class TechDebtQueryTools
             tagFilter
         );
 
-        var allFilteredItems = filteredFileDebtMap.Values.SelectMany(items => items).ToList();
-        var totalOriginalItems = fileDebtMap.Values.SelectMany(items => items).ToList();
+        var allFilteredItems = TechDebtToolsUtils.ExtractDebtItemsWithFilePath(filteredFileDebtMap);
+        var totalOriginalItems = TechDebtToolsUtils.ExtractDebtItemsWithFilePath(fileDebtMap);
 
         var orderedItems = allFilteredItems
-            .OrderByDescending(item => item.Severity)
-            .ThenBy(item => item.Id)
+            .OrderByDescending(item => item.DebtItem.Severity)
+            .ThenBy(item => item.DebtItem.Id)
             .ToList();
 
         var totalPages = (int)Math.Ceiling((double)allFilteredItems.Count / pageSize);
@@ -71,10 +71,11 @@ public static class TechDebtQueryTools
         var issues = paginatedItems
             .Select(item => new TechnicalDebtIssue
             {
-                Id = item.Id,
-                Summary = item.Summary,
-                Severity = item.Severity.ToString(),
-                Tags = [.. item.Tags.Select(t => t.ToString())],
+                Id = item.DebtItem.Id,
+                FilePath = item.FilePath,
+                Summary = item.DebtItem.Summary,
+                Severity = item.DebtItem.Severity.ToString(),
+                Tags = [.. item.DebtItem.Tags.Select(t => t.ToString())],
             })
             .ToList();
 
