@@ -24,9 +24,6 @@ public class WalkthroughCommand(IWalkthroughService walkthroughService) : AsyncC
                 return 1;
             }
 
-            var fileInfo = new System.IO.FileInfo(defaultWalkthroughPath);
-            var fileSizeKb = fileInfo.Length / 1024.0;
-
             AnsiConsole.MarkupLine($"[green]Opening TechDebtMaster walkthrough...[/]");
 
             OpenInBrowser(defaultWalkthroughPath);

@@ -50,6 +50,7 @@ public class WalkthroughService : IWalkthroughService
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>TechDebtMaster - Product Walkthrough</title>
+    <script src=""https://cdn.jsdelivr.net/npm/marked/marked.min.js""></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; font-size: 18px; }
         .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
@@ -64,7 +65,18 @@ public class WalkthroughService : IWalkthroughService
         .card h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
         .card p { font-size: 1rem; line-height: 1.4; }
         .card-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        .code-block { background: #1e293b; color: #a3a3a3; padding: 1rem; border-radius: 0.5rem; font-family: monospace; margin: 0.5rem 0; font-size: 0.95rem; line-height: 1.5; }
+        .code-block { background: #f8f9fa; color: #2d3748; padding: 1.5rem; border-radius: 0.5rem; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; margin: 1rem 0; font-size: 0.9rem; line-height: 1.6; border-left: 4px solid #6366f1; overflow-x: auto; }
+        .markdown-content { font-size: 16px; line-height: 1.6; color: #374151; }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3, .markdown-content h4, .markdown-content h5, .markdown-content h6 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; color: #1f2937; }
+        .markdown-content h1 { font-size: 1.8em; color: #6366f1; }
+        .markdown-content h2 { font-size: 1.5em; color: #059669; }
+        .markdown-content h3 { font-size: 1.3em; color: #dc2626; }
+        .markdown-content p { margin-bottom: 1em; }
+        .markdown-content ul, .markdown-content ol { margin-bottom: 1em; padding-left: 2em; }
+        .markdown-content code { background: #e5e7eb; padding: 2px 4px; border-radius: 3px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9em; }
+        .markdown-content pre { background: #1f2937; color: #f3f4f6; padding: 15px; border-radius: 6px; overflow-x: auto; margin-bottom: 1em; }
+        .markdown-content pre code { background: transparent; padding: 0; color: inherit; }
+        .markdown-content blockquote { border-left: 4px solid #6366f1; padding-left: 1em; margin-left: 0; margin-bottom: 1em; color: #6b7280; }
         .btn { display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 0.7rem 1.2rem; border: none; border-radius: 0.5rem; text-decoration: none; margin: 0.3rem; font-size: 1rem; }
         .carousel-container { position: relative; overflow: hidden; border-radius: 1rem; }
         .carousel-track { display: flex; transition: transform 0.3s ease; }
@@ -163,37 +175,8 @@ public class WalkthroughService : IWalkthroughService
         
         <div class=""section"">
             <h2>Quick Start Guide</h2>
-            <div class=""code-block"">
-# Initialize TechDebtMaster in your repository
-tdm init
-
-# Index your repository content
-tdm repo index
-
-# Analyze for technical debt
-tdm debt analyze
-
-# View results in tree structure  
-tdm debt show
-
-# Generate interactive HTML report
-tdm debt report --open
-
-# Start MCP server for AI integration
-tdm mcp
-
-# AI Tooling Integration Examples:
-
-# VSCode with MCP extension
-# 1. Install MCP extension in VSCode
-# 2. Configure MCP server: npx @modelcontextprotocol/server-filesystem
-# 3. Connect to TechDebtMaster MCP server
-
-# Gemini CLI integration
-gemini chat --model gemini-pro --mcp tdm://localhost:3000
-
-# Claude Code integration  
-claude --mcp-server tdm://localhost:3000 analyze-debt
+            <div id=""quick-start-content"" class=""markdown-content"">
+                <!-- Content will be populated by JavaScript -->
             </div>
         </div>
         
@@ -241,6 +224,109 @@ claude --mcp-server tdm://localhost:3000 analyze-debt
             updateCarousel();
         }
         
+        // Quick Start Guide markdown content
+        const quickStartMarkdown = `
+### ⚙️ Step 1: Setup & Configuration
+Configure your AI API key and default settings:
+
+\`\`\`bash
+# Set AI API key (required for analysis)
+tdm config set ai.key <your-api-key>
+
+# List Models (Optional)
+tdm dial models list
+
+# Set Model (Optional)
+tdm dial models set-default
+
+# List & Edit Prompts (Optional)
+tdm prompts edit
+
+# Set Default Prompt (Optional)
+tdm prompts set-default
+
+# View current configuration
+tdm config show
+\`\`\`
+
+### 📁 Step 2: Repository Management
+Index your repository for analysis:
+
+\`\`\`bash
+# Index repository for analysis
+tdm repo index
+
+# Check repository status
+tdm repo status
+\`\`\`
+
+### 🔍 Step 3: Debt Analysis
+Analyze your code for technical debt:
+
+\`\`\`bash
+# Analyze for technical debt
+tdm debt analyze
+\`\`\`
+
+### 📊 Step 4.1: Results & Reporting
+View and export your technical debt analysis:
+
+\`\`\`bash
+# Show debt statistics in tree structure
+tdm debt show
+
+# View detailed debt items (interactive)
+tdm debt view
+
+# Filter debt items by severity
+tdm debt show --severity Critical
+
+# Export specific debt item as XML
+tdm debt view --tags Security --xml
+\`\`\`
+
+### 📝 Step 4.2: HTML Report Generation
+Generate and manage interactive HTML reports:
+
+\`\`\`bash
+# Generate HTML report
+tdm debt report
+
+# Generate and open report in browser
+tdm debt report --output my-report.html --open
+
+# Import modified report (preview changes)
+tdm debt import modified-report.html
+
+# Apply changes from modified report
+tdm debt import modified-report.html --apply
+\`\`\`
+
+### 🤖 Step 5: AI Integration with MCP
+Connect with AI assistants using Model Context Protocol:
+
+\`\`\`bash
+# Start MCP server for external tool integration
+tdm mcp
+\`\`\`
+
+### 🔗 AI Tooling Integration Examples
+VSCode with MCP integration
+
+\`\`\`bash
+# Initialize for VS Code
+tdm init --profile vscode
+\`\`\`
+`;
+
+        // Render markdown content
+        function renderQuickStart() {
+            const contentDiv = document.getElementById('quick-start-content');
+            if (contentDiv && marked) {
+                contentDiv.innerHTML = marked.parse(quickStartMarkdown);
+            }
+        }
+        
         function prevSlide() {
             currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
             updateCarousel();
@@ -252,7 +338,10 @@ claude --mcp-server tdm://localhost:3000 analyze-debt
         }
         
         // Initialize carousel when page loads
-        document.addEventListener('DOMContentLoaded', initCarousel);
+        document.addEventListener('DOMContentLoaded', () => {
+            initCarousel();
+            renderQuickStart();
+        });
     </script>
 </body>
 </html>";
