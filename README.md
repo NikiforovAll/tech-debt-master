@@ -98,35 +98,6 @@ Analyze a repository for technical debt (currently shows mock data):
 dotnet run --project src/TechDebtMaster.Cli -- analyze <repository-path>
 ```
 
-### Use with Claude Code
-
-TODO:
-
-**Examples:**
-```bash
-# Analyze a local repository
-dotnet run --project src/TechDebtMaster.Cli -- analyze "C:\my-project"
-
-# Analyze a repository on Linux/macOS
-dotnet run --project src/TechDebtMaster.Cli -- analyze "/home/user/my-project"
-
-
-### Run the inspector:
-
-```bash
-npx @modelcontextprotocol/inspector
-```
-
-```
-## Roadmap
-
-- [ ] Implement AI-powered technical debt analysis
-- [ ] Add support for different repository formats
-- [ ] Implement caching for repository analysis
-- [ ] Create detailed reporting features
-- [ ] Add integration with popular Git platforms
-- [ ] Implement technical debt tracking over time
-
 ## Acknowledgments
 
 - [Spectre.Console](https://spectreconsole.net/) for the beautiful CLI framework

@@ -126,16 +126,22 @@ public class TechDebtAnalysisHandler(
         foreach (var debtElement in debtElements)
         {
             var content = debtElement.Element("content")?.Value ?? string.Empty;
+            var id = debtElement.Attribute("id")?.Value ?? string.Empty;
+            var summary = debtElement.Element("summary")?.Value ?? string.Empty;
+            var tags = ParseTags(debtElement.Element("tags")?.Value);
+
+            // Enhance content with metadata headers for user readability
+            var enhancedContent = FormatContentWithMetadata(id, summary, filePath, tags, content);
 
             // Save each debt item's content to a separate file
-            var reference = await techDebtStorage.SaveTechDebtAsync(content, filePath);
+            var reference = await techDebtStorage.SaveTechDebtAsync(enhancedContent, filePath);
 
             var debtItem = new TechnicalDebtItem
             {
-                Id = debtElement.Attribute("id")?.Value ?? string.Empty,
-                Summary = debtElement.Element("summary")?.Value ?? string.Empty,
+                Id = id,
+                Summary = summary,
                 Severity = ParseSeverity(debtElement.Element("severity")?.Value),
-                Tags = ParseTags(debtElement.Element("tags")?.Value),
+                Tags = tags,
                 Reference = reference,
             };
 
@@ -143,6 +149,31 @@ public class TechDebtAnalysisHandler(
         }
 
         return debtItems;
+    }
+
+    private static string FormatContentWithMetadata(
+        string id,
+        string summary,
+        string filePath,
+        DebtTag[] tags,
+        string content
+    )
+    {
+        var tagList = tags.Length > 0 
+            ? string.Join(", ", tags.Select(t => t.ToString())) 
+            : "";
+
+        var frontmatter = $"""
+            ---
+            id: {id}
+            summary: {summary}
+            file: {filePath}
+            tags: [{tagList}]
+            ---
+
+            """;
+
+        return frontmatter + content.Trim();
     }
 
     private static DebtSeverity ParseSeverity(string? severityText)
