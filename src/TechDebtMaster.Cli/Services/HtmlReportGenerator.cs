@@ -816,6 +816,31 @@ public class HtmlReportGenerator : IHtmlReportGenerator
             updateDoneCount();
         });
 
+        // Strip YAML frontmatter from markdown content
+        function stripYamlFrontmatter(content) {
+            // Check if content starts with YAML frontmatter
+            if (content.trim().startsWith('---')) {
+                const lines = content.split('\n');
+                let endIndex = -1;
+                
+                // Find the closing --- (skip the first line which is the opening ---)
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '---') {
+                        endIndex = i;
+                        break;
+                    }
+                }
+                
+                // If we found the closing ---, return content after it
+                if (endIndex !== -1) {
+                    return lines.slice(endIndex + 1).join('\n').trim();
+                }
+            }
+            
+            // Return original content if no frontmatter found
+            return content;
+        }
+
         // Setup event listeners
         function setupEventListeners() {
             document.getElementById('search-input').addEventListener('input', (e) => {
@@ -1107,7 +1132,8 @@ public class HtmlReportGenerator : IHtmlReportGenerator
                     // Decode HTML entities and parse markdown
                     const textarea = document.createElement('textarea');
                     textarea.innerHTML = markdownContent;
-                    markdownDiv.innerHTML = marked.parse(textarea.value);
+                    const cleanedContent = stripYamlFrontmatter(textarea.value);
+                    markdownDiv.innerHTML = marked.parse(cleanedContent);
                     contentDiv.appendChild(markdownDiv);
                     debtItem.appendChild(contentDiv);
                 }
