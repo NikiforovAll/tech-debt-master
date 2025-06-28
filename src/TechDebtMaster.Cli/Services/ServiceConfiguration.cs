@@ -60,6 +60,7 @@ public static class ServiceConfiguration
         services.AddScoped<PromptsEditCommand>();
         services.AddScoped<PromptsRestoreTemplatesCommand>();
         services.AddScoped<PromptsSetDefaultCommand>();
+        services.AddScoped<WalkthroughCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
         services.AddScoped<IIndexStorageService, IndexStorageService>();
         services.AddScoped<IHashCalculator, HashCalculator>();
@@ -71,6 +72,7 @@ public static class ServiceConfiguration
         services.AddHttpClient<IDialService, DialService>();
         services.AddScoped<ITechDebtStorageService, TechDebtStorageService>();
         services.AddSingleton<ITemplateService, TemplateService>();
+        services.AddSingleton<IWalkthroughService, WalkthroughService>();
         services.AddScoped<IEditorService, EditorService>();
         services.AddScoped<IHtmlReportGenerator, HtmlReportGenerator>();
         services.AddScoped<IReportStateExtractor, ReportStateExtractor>();
