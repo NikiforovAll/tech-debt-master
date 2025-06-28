@@ -145,6 +145,14 @@ app.Configure(config =>
         .AddCommand<HelpCommand>("help")
         .WithDescription("Show detailed help with usage examples and workflows");
 
+    config
+        .AddCommand<WalkthroughCommand>("walkthrough")
+        .WithDescription("Generate a comprehensive product walkthrough HTML presentation")
+        .WithExample("walkthrough")
+        .WithExample("walkthrough", "/path/to/repo")
+        .WithExample("walkthrough", "--output", "my-walkthrough.html")
+        .WithExample("walkthrough", "--output", "presentation.html", "--open");
+
     config.AddBranch(
         "config",
         branch =>
