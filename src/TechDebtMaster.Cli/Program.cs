@@ -16,6 +16,10 @@ await config.EnsureDefaultsAsync();
 var templateService = new TemplateService();
 await templateService.EnsureTemplatesAsync();
 
+// Ensure default walkthrough is available
+var walkthroughService = new WalkthroughService();
+await walkthroughService.EnsureDefaultWalkthroughAsync();
+
 // Set the default command to show welcome screen
 app.SetDefaultCommand<DefaultCommand>();
 
@@ -144,6 +148,11 @@ app.Configure(config =>
     config
         .AddCommand<HelpCommand>("help")
         .WithDescription("Show detailed help with usage examples and workflows");
+
+    config
+        .AddCommand<WalkthroughCommand>("walkthrough")
+        .WithDescription("Open the TechDebtMaster product walkthrough in your browser")
+        .WithExample("walkthrough");
 
     config.AddBranch(
         "config",
