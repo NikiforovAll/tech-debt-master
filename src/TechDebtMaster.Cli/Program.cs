@@ -145,6 +145,12 @@ app.Configure(config =>
         .AddCommand<HelpCommand>("help")
         .WithDescription("Show detailed help with usage examples and workflows");
 
+    config
+        .AddCommand<CapabilitiesCommand>("capabilities")
+        .WithDescription("Show what TechDebtMaster can do for you")
+        .WithAlias("what-can-you-do")
+        .WithExample("capabilities");
+
     config.AddBranch(
         "config",
         branch =>
