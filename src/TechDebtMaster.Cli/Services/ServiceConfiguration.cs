@@ -1,4 +1,9 @@
+using System.Diagnostics;
 using Microsoft.SemanticKernel;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using TechDebtMaster.Cli.Commands;
 using TechDebtMaster.Cli.Services.Analysis;
 using TechDebtMaster.Cli.Services.Analysis.Handlers;
@@ -7,16 +12,31 @@ namespace TechDebtMaster.Cli.Services;
 
 public static class ServiceConfiguration
 {
+    public static readonly ActivitySource ActivitySource = new("TechDebtMaster");
+
+    // OTEL_EXPORTER_OTLP_ENDPOINT=""
+    // OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
+    // OTEL_EXPORTER_OTLP_HEADERS=""
+    public static readonly TracerProvider TracerProvider = Sdk.CreateTracerProviderBuilder()
+        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("tdm"))
+        .AddSource("TechDebtMaster")
+        .AddSource("Microsoft.SemanticKernel*")
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter()
+        .Build();
+
+    public static readonly MeterProvider MeterProvider = Sdk.CreateMeterProviderBuilder()
+        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("tdm"))
+        .AddMeter("Microsoft.SemanticKernel*")
+        .AddOtlpExporter()
+        .Build();
+
     public static IServiceCollection ConfigureServices(this IServiceCollection services)
     {
         services.AddSingleton<IConfigurationService, ConfigurationService>();
 
         services.AddScoped<Kernel>(provider =>
         {
-            var httpClient = new HttpClient(
-                new HttpClientHandler { CheckCertificateRevocationList = false }
-            );
-
             var configService = provider.GetRequiredService<IConfigurationService>();
 
             var config = configService.GetConfiguration();
@@ -25,14 +45,21 @@ public static class ServiceConfiguration
             // Configure based on provider
             if (config.Provider.Equals("openai", StringComparison.OrdinalIgnoreCase))
             {
-                builder.AddOpenAIChatCompletion(
+                builder.AddOpenAIChatCompletion(modelId: config.Model, apiKey: config.ApiKey);
+            }
+            else if (config.Provider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.AddOllamaChatCompletion(
                     modelId: config.Model,
-                    apiKey: config.ApiKey,
-                    httpClient: httpClient
+                    endpoint: new Uri(config.BaseUrl)
                 );
             }
-            else
+            else if (config.Provider.Equals("dial", StringComparison.OrdinalIgnoreCase))
             {
+                var httpClient = new HttpClient(
+                    new HttpClientHandler { CheckCertificateRevocationList = false }
+                );
+
                 // Default to DIAL (Azure OpenAI compatible)
                 builder.AddAzureOpenAIChatCompletion(
                     deploymentName: config.Model,
@@ -42,6 +69,10 @@ public static class ServiceConfiguration
                     modelId: config.Model,
                     httpClient: httpClient
                 );
+            }
+            else
+            {
+                throw new NotSupportedException($"Provider '{config.Provider}' is not supported.");
             }
 
             return builder.Build();
@@ -60,7 +91,6 @@ public static class ServiceConfiguration
         services.AddScoped<PromptsEditCommand>();
         services.AddScoped<PromptsRestoreTemplatesCommand>();
         services.AddScoped<PromptsSetDefaultCommand>();
-        services.AddScoped<WalkthroughCommand>();
         services.AddScoped<IRepositoryIndexService, RepositoryIndexService>();
         services.AddScoped<IIndexStorageService, IndexStorageService>();
         services.AddScoped<IHashCalculator, HashCalculator>();
@@ -72,7 +102,6 @@ public static class ServiceConfiguration
         services.AddHttpClient<IDialService, DialService>();
         services.AddScoped<ITechDebtStorageService, TechDebtStorageService>();
         services.AddSingleton<ITemplateService, TemplateService>();
-        services.AddSingleton<IWalkthroughService, WalkthroughService>();
         services.AddScoped<IEditorService, EditorService>();
         services.AddScoped<IHtmlReportGenerator, HtmlReportGenerator>();
         services.AddScoped<IReportStateExtractor, ReportStateExtractor>();

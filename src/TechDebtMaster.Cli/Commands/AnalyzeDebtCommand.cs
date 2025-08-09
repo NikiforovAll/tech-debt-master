@@ -248,6 +248,13 @@ public class AnalyzeDebtCommand(
         foreach (var (filePath, content) in filesToAnalyzeMap.OrderBy(kvp => kvp.Key))
         {
             currentFileIndex++;
+
+            using var activity = ServiceConfiguration.ActivitySource.StartActivity("analyze-file");
+            activity?.SetTag("file.path", filePath);
+            activity?.SetTag("file.name", Path.GetFileName(filePath));
+            activity?.SetTag("file.index", currentFileIndex);
+            activity?.SetTag("file.total", totalFiles);
+
             try
             {
                 await AnsiConsole
@@ -293,6 +300,13 @@ public class AnalyzeDebtCommand(
                                         debtItemsFound.Add((filePath, item));
                                     }
 
+                                    // Add activity tags for debt found
+                                    activity?.SetTag(
+                                        "debt.items.count",
+                                        techDebtResult.Items.Count
+                                    );
+                                    activity?.SetTag("analysis.result", "debt_found");
+
                                     // Display debt items for this file immediately
                                     AnsiConsole.MarkupLine(
                                         $"[green]✓[/] {filePath} - [yellow]{techDebtResult.Items.Count} debt item(s) found[/]"
@@ -310,6 +324,9 @@ public class AnalyzeDebtCommand(
                                 }
                                 else
                                 {
+                                    activity?.SetTag("debt.items.count", 0);
+                                    activity?.SetTag("analysis.result", "no_debt");
+
                                     AnsiConsole.MarkupLine(
                                         $"[green]✓[/] {filePath} - [green]No debt found[/]"
                                     );
@@ -317,6 +334,8 @@ public class AnalyzeDebtCommand(
                             }
                             else
                             {
+                                activity?.SetTag("analysis.result", "skipped");
+
                                 AnsiConsole.MarkupLine(
                                     $"[yellow]⚠[/] {filePath} - [dim]Skipped[/]"
                                 );
@@ -324,9 +343,13 @@ public class AnalyzeDebtCommand(
                         }
                     );
             }
-            catch (XmlException)
+            catch (XmlException ex)
             {
                 failedCount++;
+                activity?.SetTag("analysis.result", "failed");
+                activity?.SetTag("error.type", "xml_parsing");
+                activity?.SetTag("error.message", ex.Message);
+
                 AnsiConsole.MarkupLine($"[red]✗[/] {filePath} - [red]XML parsing failed[/]");
             }
         }
@@ -344,7 +367,6 @@ public class AnalyzeDebtCommand(
 
         return 0;
     }
-
 }
 
 public class AnalyzeDebtSettings : CommandSettings

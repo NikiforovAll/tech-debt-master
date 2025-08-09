@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/AppHost/AppHost.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/TechDebtMaster.Cli/TechDebtMaster.Cli.csproj" />
   </Folder>

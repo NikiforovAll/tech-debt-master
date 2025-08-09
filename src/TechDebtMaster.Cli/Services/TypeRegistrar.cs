@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Cli;
 
 namespace TechDebtMaster.Cli.Services;

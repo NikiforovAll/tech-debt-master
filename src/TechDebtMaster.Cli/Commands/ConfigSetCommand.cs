@@ -12,7 +12,7 @@ public class ConfigSetCommand(IConfigurationService configurationService)
     private static readonly HashSet<string> s_validKeys =
     [
         "ai.key",
-        "ai.endpoint",
+        "ai.url",
         "ai.model",
         "ai.provider",
         "prompt.default",
@@ -38,7 +38,7 @@ public class ConfigSetCommand(IConfigurationService configurationService)
 
         if (settings.Key == "ai.provider")
         {
-            var validProviders = new[] { "dial", "openai" };
+            var validProviders = new[] { "dial", "openai", "ollama" };
             if (!validProviders.Contains(settings.Value, StringComparer.OrdinalIgnoreCase))
             {
                 AnsiConsole.MarkupLine($"[red]Error:[/] Invalid provider '{settings.Value}'.");

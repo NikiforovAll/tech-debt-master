@@ -56,21 +56,6 @@ TechDebtMaster is a command-line application that helps developers identify, ana
    ```bash
    dotnet cake --target build
    ```
-
-## Configuration
-
-### Environment Variables
-
-Set the following environment variable before running the application:
-
-```bash
-# For EPAM AI Proxy
-export DIAL_API_KEY="your-api-key-here"
-
-# For Windows
-set DIAL_API_KEY=your-api-key-here
-```
-
 ## Usage
 
 ### Available Commands

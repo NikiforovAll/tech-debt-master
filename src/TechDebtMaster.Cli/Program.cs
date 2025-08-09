@@ -16,9 +16,6 @@ await config.EnsureDefaultsAsync();
 var templateService = new TemplateService();
 await templateService.EnsureTemplatesAsync();
 
-// Ensure default walkthrough is available
-var walkthroughService = new WalkthroughService();
-await walkthroughService.EnsureDefaultWalkthroughAsync();
 
 // Set the default command to show welcome screen
 app.SetDefaultCommand<DefaultCommand>();
@@ -28,6 +25,12 @@ var appConfig = config.GetConfiguration();
 
 app.Configure(config =>
 {
+    // Configure OpenTelemetry interceptors
+    var tracingInterceptor = new OpenTelemetryCommandInterceptor();
+    var flushInterceptor = new FlushOtelExporterInterceptor();
+    config.SetInterceptor(tracingInterceptor);
+    config.SetInterceptor(flushInterceptor);
+
     // Configure exception handling
     config.SetExceptionHandler(
         (ex, _) =>
@@ -149,10 +152,6 @@ app.Configure(config =>
         .AddCommand<HelpCommand>("help")
         .WithDescription("Show detailed help with usage examples and workflows");
 
-    config
-        .AddCommand<WalkthroughCommand>("walkthrough")
-        .WithDescription("Open the TechDebtMaster product walkthrough in your browser")
-        .WithExample("walkthrough");
 
     config.AddBranch(
         "config",

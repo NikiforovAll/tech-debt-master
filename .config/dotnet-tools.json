@@ -29,6 +29,13 @@
         "husky"
       ],
       "rollForward": false
+    },
+    "aspire.cli": {
+      "version": "9.4.0",
+      "commands": [
+        "aspire"
+      ],
+      "rollForward": false
     }
   }
 }
