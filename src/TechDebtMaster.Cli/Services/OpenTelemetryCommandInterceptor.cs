@@ -9,7 +9,7 @@ public class OpenTelemetryCommandInterceptor : ICommandInterceptor
 
     public void Intercept(CommandContext context, CommandSettings settings)
     {
-        this._activity = ServiceConfiguration.ActivitySource.StartActivity(context.Name);
+        _activity = ServiceConfiguration.ActivitySource.StartActivity(context.Name);
         _activity?.SetTag("command.name", context.Name);
     }
 

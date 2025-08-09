@@ -14,22 +14,38 @@ public static class ServiceConfiguration
 {
     public static readonly ActivitySource ActivitySource = new("TechDebtMaster");
 
-    // OTEL_EXPORTER_OTLP_ENDPOINT=""
-    // OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
-    // OTEL_EXPORTER_OTLP_HEADERS=""
-    public static readonly TracerProvider TracerProvider = Sdk.CreateTracerProviderBuilder()
-        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("tdm"))
-        .AddSource("TechDebtMaster")
-        .AddSource("Microsoft.SemanticKernel*")
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter()
-        .Build();
+    public static readonly TracerProvider? TracerProvider = CreateTracerProvider();
+    public static readonly MeterProvider? MeterProvider = CreateMeterProvider();
 
-    public static readonly MeterProvider MeterProvider = Sdk.CreateMeterProviderBuilder()
-        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("tdm"))
-        .AddMeter("Microsoft.SemanticKernel*")
-        .AddOtlpExporter()
-        .Build();
+    private static TracerProvider? CreateTracerProvider()
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")))
+        {
+            return null;
+        }
+
+        return Sdk.CreateTracerProviderBuilder()
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("tdm"))
+            .AddSource("TechDebtMaster")
+            .AddSource("Microsoft.SemanticKernel*")
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter()
+            .Build();
+    }
+
+    private static MeterProvider? CreateMeterProvider()
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")))
+        {
+            return null;
+        }
+
+        return Sdk.CreateMeterProviderBuilder()
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("tdm"))
+            .AddMeter("Microsoft.SemanticKernel*")
+            .AddOtlpExporter()
+            .Build();
+    }
 
     public static IServiceCollection ConfigureServices(this IServiceCollection services)
     {
