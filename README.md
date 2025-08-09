@@ -60,27 +60,36 @@ TechDebtMaster is a command-line application that helps developers identify, ana
 
 ### Available Commands
 
+#### Capabilities Command
+Get a comprehensive overview of what TechDebtMaster can do:
+
+```bash
+dotnet run --project src/TechDebtMaster.Cli -- capabilities
+# Or use the alias:
+dotnet run --project src/TechDebtMaster.Cli -- what-can-you-do
+```
+
 #### Index Command
 Index a repository to extract file summaries and prepare for analysis:
 
 ```bash
-dotnet run --project src/TechDebtMaster.Cli -- index <repository-path>
+dotnet run --project src/TechDebtMaster.Cli -- repo index <repository-path>
 ```
 
 **Examples:**
 ```bash
 # Index a local repository
-dotnet run --project src/TechDebtMaster.Cli -- index "C:\my-project"
+dotnet run --project src/TechDebtMaster.Cli -- repo index "C:\my-project"
 
 # Index a repository on Linux/macOS
-dotnet run --project src/TechDebtMaster.Cli -- index "/home/user/my-project"
+dotnet run --project src/TechDebtMaster.Cli -- repo index "/home/user/my-project"
 ```
 
 #### Analyze Command
-Analyze a repository for technical debt (currently shows mock data):
+Analyze a repository for technical debt:
 
 ```bash
-dotnet run --project src/TechDebtMaster.Cli -- analyze <repository-path>
+dotnet run --project src/TechDebtMaster.Cli -- debt analyze <repository-path>
 ```
 
 ## Acknowledgments

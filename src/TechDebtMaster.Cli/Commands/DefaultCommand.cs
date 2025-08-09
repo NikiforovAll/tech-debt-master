@@ -48,6 +48,7 @@ public class DefaultCommand : Command<DefaultCommand.Settings>
         table.AddRow(new Markup("[green]mcp[/]"), new Text("Start Model Context Protocol server"));
         table.AddRow(new Markup("[green]clean[/]"), new Text("Clean up .tdm folder"));
         table.AddRow(new Markup("[green]help[/]"), new Text("Show detailed help with examples"));
+        table.AddRow(new Markup("[green]capabilities[/]"), new Text("Show what TechDebtMaster can do"));
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
